@@ -1,0 +1,93 @@
+:root {
+  --admin-topbar-height: 70px;
+  --admin-gutter: clamp(20px, 3.25vw, 60px);
+  --admin-content-max: 1520px;
+  scrollbar-gutter: stable;
+}
+
+.workspace {
+  min-height: 100dvh;
+  min-width: 0;
+  margin-left: var(--sidebar-width);
+  background: var(--background);
+}
+
+.admin-container {
+  width: 100%;
+  max-width: calc(var(--admin-content-max) + 2 * var(--admin-gutter));
+  margin-inline: auto;
+  padding-inline: var(--admin-gutter);
+}
+
+.admin-topbar {
+  position: sticky;
+  z-index: 5;
+  top: 0;
+  height: var(--admin-topbar-height);
+  border-bottom: 1px solid #e9ebf3;
+  background: #fafafe;
+}
+
+.admin-topbar-inner {
+  display: flex;
+  height: 100%;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 22px;
+  white-space: nowrap;
+}
+
+.admin-topbar-separator { width: 1px; height: 27px; background: #e0e4ee; }
+.notification { position: relative; display: grid; width: 32px; height: 38px; place-items: center; color: #56627d; }
+.notification i { position: absolute; top: 1px; right: 0; width: 10px; height: 10px; border: 1.5px solid #fff; border-radius: 50%; background: #ff541b; }
+
+.admin-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 22px;
+  padding-block: 18px 42px;
+}
+
+.page-heading {
+  display: grid;
+  grid-template: 'title actions' 40px 'description description' auto / minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 14px;
+  min-width: 0;
+}
+
+.page-heading h1 {
+  grid-area: title;
+  color: var(--foreground);
+  font-size: 30px;
+  font-weight: 750;
+  line-height: 1.2;
+  letter-spacing: -.025em;
+}
+
+.page-heading p {
+  grid-area: description;
+  color: var(--secondary-text);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 24px;
+}
+
+.page-heading-actions { grid-area: actions; min-width: 0; justify-self: end; }
+
+@media (max-width: 660px) {
+  :root { --admin-gutter: 12px; }
+  .admin-topbar-inner { gap: 11px; }
+  .page-heading h1 { font-size: 25px; }
+  .page-heading p { font-size: 13px; line-height: 21px; }
+}
+
+@media (max-width: 560px) {
+  .page-heading { grid-template-rows: 44px auto; column-gap: 8px; }
+  .page-heading p { min-height: 42px; }
+}
+
+@media (max-width: 360px) {
+  .page-heading p { min-height: 63px; }
+}

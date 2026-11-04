@@ -1,0 +1,100 @@
+.order-management, .order-range { --order-accent: #fd7e05; }
+.order-management { --list-accent: var(--order-accent); }
+
+.order-range {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: none;
+  height: 40px;
+  border: 1px solid #e5e8f0;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 650;
+}
+.order-range:focus-within { outline: 2px solid var(--order-accent); outline-offset: 2px; }
+.order-range select {
+  appearance: none;
+  height: 100%;
+  padding: 0 31px 0 37px;
+  border-radius: inherit;
+  outline: none;
+  cursor: pointer;
+}
+.order-range svg { position: absolute; color: #485775; pointer-events: none; }
+.order-range svg:first-child { left: 12px; }
+.order-range svg:last-child { right: 10px; }
+
+.order-management .order-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+.order-stats .stat-card { min-height: 125px; padding: 13px; gap: 13px; border-radius: 14px; }
+.order-stats .stat-icon { width: 47px; height: 47px; }
+.order-stats .stat-copy { min-width: 0; padding-top: 0; white-space: normal; }
+.order-stats .stat-copy h2 { font-size: 15px; }
+.order-stats .stat-value { margin: 4px 0 6px; font-size: 31px; }
+.order-stats .stat-caption { font-size: 13px; }
+.order-stats .sparkline { right: 10px; bottom: 13px; width: 24%; max-width: 67px; }
+.order-metric-total { --stat-color: #7b45f8; --icon-bg: #efe9ff; border-color: #ebe7fa; background: #faf9fe; }
+.order-metric-paid { --stat-color: #07a975; --icon-bg: #e1f8eb; border-color: #e4f3ed; background: #f6fcfa; }
+.order-metric-paid .stat-icon { color: #0c9a42; }
+.order-metric-pending { --stat-color: var(--order-accent); --icon-bg: #fff1e4; border-color: #f9ede2; background: #fffaf6; }
+.order-metric-closed { --stat-color: #8d96bf; --icon-bg: #ffecee; border-color: #e9eaf5; background: #f9f9fd; }
+.order-metric-closed .stat-icon { color: #e12b37; }
+
+.order-list { min-width: 0; margin-top: 29px; }
+.order-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 24px; }
+.order-filters .list-select { width: 160px; }
+.order-filters .order-export-button { gap: 8px; padding-inline: 13px; font-size: 13px; cursor: pointer; }
+.order-filters .order-export-button:hover { background: #f7f8fb; }
+.order-list .list-table-frame { background: #fff; }
+.order-list .list-pagination { padding: 22px 0 0; }
+
+.order-table { min-width: 980px; }
+.order-table th, .order-table td { padding-inline: 11px; }
+.order-table td { height: 43px; }
+.order-code, .order-amount { font-weight: 650; }
+.order-plan, .order-sort-heading { display: inline-flex; align-items: center; gap: 6px; }
+.order-plan-icon { display: inline-grid; width: 21px; height: 21px; place-items: center; border-radius: 50%; background: #fff0e0; color: #c65c00; }
+.order-sort-heading svg { color: #596681; }
+.order-missing { color: #67738a; }
+.order-action { text-align: center; }
+.order-action .order-details-button { height: 30px; padding-inline: 7px; color: #225bb5; font-size: 13px; font-weight: 650; cursor: pointer; }
+
+.order-badge { gap: 4px; padding: 3px 9px; line-height: 1.3; }
+.order-payment-paid, .order-activation-activated { background: #e0f7e8; color: #13763b; }
+.order-payment-pending, .order-activation-processing { background: #fff0df; color: #a94f00; }
+.order-payment-closed, .order-activation-notStarted { background: #eeeff5; color: #4f5c75; }
+.order-activation-failed { background: #ffe6e8; color: #b8212d; }
+
+@media (max-width: 1170px) {
+  .order-stats .stat-card { gap: 9px; padding-inline: 10px; }
+  .order-stats .stat-icon { width: 38px; height: 38px; }
+  .order-stats .stat-value { font-size: 28px; }
+  .order-stats .sparkline { width: 19%; right: 8px; bottom: 8px; }
+}
+
+@media (max-width: 880px) {
+  .order-management .order-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .order-filters .list-search { flex-basis: 100%; }
+}
+
+@media (max-width: 660px) {
+  .order-management .order-stats { gap: 9px; }
+  .order-stats .stat-card { min-height: 106px; }
+}
+
+@media (max-width: 480px) {
+  .order-stats .stat-card { flex-direction: column; }
+  .order-filters .list-select { width: 100%; }
+  .order-filters { gap: 7px; }
+}
+
+@media (max-width: 360px) {
+  .order-range { font-size: 12px; }
+  .order-range select { padding-inline: 27px 22px; }
+  .order-range svg:first-child { left: 8px; width: 13px; }
+  .order-range svg:last-child { right: 6px; width: 13px; }
+}

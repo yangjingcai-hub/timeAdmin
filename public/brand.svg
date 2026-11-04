@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <rect x="3" y="3" width="42" height="42" rx="13" fill="#fffaf3" stroke="#ff820b" stroke-width="2.6"/>
+  <clipPath id="badge"><rect x="4" y="4" width="40" height="40" rx="12"/></clipPath>
+  <g clip-path="url(#badge)">
+    <circle cx="24" cy="19" r="7" fill="#ffc21a"/>
+    <path d="M3 44v-4l13-11c2-2 5 0 8 0s6-2 8 0l13 11v4z" fill="#ff830b"/>
+    <path d="M12 36h24l4 4H8z" fill="#ff9d30"/>
+  </g>
+</svg>
