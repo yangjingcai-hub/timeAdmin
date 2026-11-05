@@ -8,7 +8,7 @@ import { createPlanDraft, getPlanChanges, planDetails, saleStatus, validatePlanD
 interface PlanEditorProps {
   plan: PlanConfig
   onClose: () => void
-  onConfirm: (plan: PlanConfig) => void
+  onConfirm: (plan: PlanConfig) => Promise<void>
   restoreFocus: () => void
 }
 
@@ -16,6 +16,8 @@ export function PlanEditor({ plan, onClose, onConfirm, restoreFocus }: PlanEdito
   const [draft, setDraft] = useState(() => createPlanDraft(plan))
   const [errors, setErrors] = useState<PlanErrors>({})
   const [unchanged, setUnchanged] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [failure, setFailure] = useState('')
   const [proposal, setProposal] = useState<{ plan: PlanConfig; changes: PlanChange[] } | null>(null)
   const priceInput = useRef<HTMLInputElement>(null)
   const durationInput = useRef<HTMLInputElement>(null)
@@ -51,8 +53,16 @@ export function PlanEditor({ plan, onClose, onConfirm, restoreFocus }: PlanEdito
     setProposal({ plan: result.value, changes })
   }
 
+  async function save() {
+    if (!proposal || saving) return
+    setSaving(true); setFailure('')
+    try { await onConfirm(proposal.plan) }
+    catch (error) { setFailure(error instanceof Error ? error.message : '保存失败，请稍后重试。') }
+    finally { setSaving(false) }
+  }
+
   return (
-    <Dialog.Root open onOpenChange={(open) => { if (!open) onClose() }}>
+    <Dialog.Root open onOpenChange={(open) => { if (!open && !saving) onClose() }}>
       <Dialog.Portal>
         <Dialog.Overlay className="detail-overlay" />
         <Dialog.Content className="detail-surface plan-modal" role={proposal ? 'alertdialog' : 'dialog'}
@@ -60,9 +70,9 @@ export function PlanEditor({ plan, onClose, onConfirm, restoreFocus }: PlanEdito
           onCloseAutoFocus={(event) => { event.preventDefault(); restoreFocus() }}
           onPointerDownOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => {
-            if (proposal) {
+            if (proposal || saving) {
               event.preventDefault()
-              setProposal(null)
+              if (!saving) setProposal(null)
             }
           }}>
           <header className="plan-modal-header">
@@ -85,9 +95,10 @@ export function PlanEditor({ plan, onClose, onConfirm, restoreFocus }: PlanEdito
               </dl>
               {plan.available && !proposal.plan.available && <p className="plan-delist-note">下架后用户无法新购此套餐，已有会员权益不受影响。</p>}
               <footer className="plan-modal-actions">
-                <Button ref={backButton} type="button" variant="ghost" className="plan-secondary-button" onClick={() => setProposal(null)}>返回编辑</Button>
-                <Button type="button" className="plan-primary-button" onClick={() => onConfirm(proposal.plan)}>确认修改</Button>
+                <Button ref={backButton} type="button" variant="ghost" className="plan-secondary-button" disabled={saving} onClick={() => { setProposal(null); setFailure('') }}>返回编辑</Button>
+                <Button type="button" className="plan-primary-button" disabled={saving} onClick={() => void save()}>{saving ? '正在保存…' : '确认修改'}</Button>
               </footer>
+              {failure && <p className="plan-field-error" role="alert">{failure}</p>}
             </div>
           ) : (
             <form className="plan-modal-body" noValidate onSubmit={reviewChanges}>
@@ -112,6 +123,7 @@ export function PlanEditor({ plan, onClose, onConfirm, restoreFocus }: PlanEdito
                 <PlanToggle label="官网推荐" status={draft.recommended ? '开启' : '关闭'} checked={draft.recommended} onChange={(checked) => updateDraft('recommended', checked)} />
                 <PlanToggle label="允许购买" status={saleStatus(draft.available)} checked={draft.available} onChange={(checked) => updateDraft('available', checked)} />
               </div>
+              <p className="plan-local-note">保存后对新订单生效，已有订单和会员权益保持原购买条件。</p>
               {unchanged && <p className="plan-no-changes" role="status">没有需要保存的修改。</p>}
               <footer className="plan-modal-actions">
                 <Dialog.Close asChild><Button type="button" variant="ghost" className="plan-secondary-button">取消</Button></Dialog.Close>

@@ -1,8 +1,10 @@
-import { useId, useState } from 'react'
+import { useId } from 'react'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
-import { formatNumber, ranges, trends, type TrendPoint, type TrendRange } from './mock-data'
+import { formatNumber, ranges, type TrendPoint, type TrendRange } from './overview-api'
+
+const weekday = new Intl.DateTimeFormat('zh-CN', { weekday: 'short', timeZone: 'UTC' })
 
 const series = [
   { key: 'users', name: '新增用户', color: '#ff790d' },
@@ -12,7 +14,7 @@ const series = [
 function TrendTooltip({ point }: { point: TrendPoint }) {
   return (
     <div className="trend-tooltip">
-      <p>{point.date}（{point.day}）</p>
+      <p>{point.date.slice(5)}（{weekday.format(new Date(point.date))}）</p>
       {series.map(({ key, name, color }) => (
         <div className="tooltip-row" key={key}><i style={{ background: color }} />{name}<strong>{formatNumber(point[key])}</strong></div>
       ))}
@@ -20,11 +22,12 @@ function TrendTooltip({ point }: { point: TrendPoint }) {
   )
 }
 
-export function GrowthChart() {
-  const [range, setRange] = useState<TrendRange>(7)
+export function GrowthChart({ range, onRange, data, message }: {
+  range: TrendRange; onRange: (range: TrendRange) => void; data?: TrendPoint[]; message: string
+}) {
   const gradientId = useId()
-  const data = trends[range]
-  const ticks = Array.from({ length: 7 }, (_, i) => data[Math.round(i * (data.length - 1) / 6)].date)
+  const tickIndexes = new Set(Array.from({ length: 7 }, (_, i) => Math.round(i * ((data?.length ?? 1) - 1) / 6)))
+  const ticks = data?.filter((_, index) => tickIndexes.has(index)).map(point => point.date)
 
   return (
     <Card className="panel growth-panel" aria-labelledby="growth-title">
@@ -32,7 +35,7 @@ export function GrowthChart() {
         <CardTitle id="growth-title">用户增长趋势</CardTitle>
         <div className="range-switch" role="group" aria-label="趋势时间范围">
           {ranges.map((days) => (
-            <Button key={days} type="button" variant="ghost" size="sm" aria-pressed={range === days} onClick={() => setRange(days)}>
+            <Button key={days} type="button" variant="ghost" size="sm" aria-pressed={range === days} onClick={() => onRange(days)}>
               近 {days} 天
             </Button>
           ))}
@@ -42,7 +45,7 @@ export function GrowthChart() {
         {series.map(({ key, name, color }) => <li key={key}><i style={{ background: color }} />{name}</li>)}
       </ul>
       <div className="growth-plot" aria-label={`近 ${range} 天新增用户与会员趋势`}>
-        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+        {!data?.length ? <p className="overview-placeholder">{data ? '暂无增长记录' : message}</p> : <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <AreaChart data={data} margin={{ top: 6, right: 13, bottom: 0, left: 0 }}>
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -51,8 +54,8 @@ export function GrowthChart() {
               </linearGradient>
             </defs>
             <CartesianGrid vertical={false} stroke="#eef0f6" />
-            <XAxis dataKey="date" ticks={ticks} interval="preserveStartEnd" minTickGap={8} tickMargin={9} tickLine={false} axisLine={{ stroke: '#e9ecf4' }} tick={{ fill: '#5e6880', fontSize: 13 }} padding={{ left: 14, right: 13 }} />
-            <YAxis width={41} tickMargin={9} domain={[0, 300]} ticks={[0, 60, 120, 180, 240, 300]} tickLine={false} axisLine={{ stroke: '#e9ecf4' }} tick={{ fill: '#5e6880', fontSize: 13 }} />
+            <XAxis dataKey="date" ticks={ticks} tickFormatter={(date: string) => date.slice(5)} interval="preserveStartEnd" minTickGap={8} tickMargin={9} tickLine={false} axisLine={{ stroke: '#e9ecf4' }} tick={{ fill: '#5e6880', fontSize: 13 }} padding={{ left: 14, right: 13 }} />
+            <YAxis width={49} tickMargin={9} domain={[0, 'auto']} allowDecimals={false} tickLine={false} axisLine={{ stroke: '#e9ecf4' }} tick={{ fill: '#5e6880', fontSize: 13 }} />
             <Tooltip cursor={{ stroke: '#ffbc8b', strokeDasharray: '4 3' }} offset={14} content={({ active, payload }) => {
               const point = payload?.[0]?.payload as TrendPoint | undefined
               return active && point ? <TrendTooltip point={point} /> : null
@@ -63,7 +66,7 @@ export function GrowthChart() {
                 activeDot={{ r: 5, fill: color, stroke: '#fff', strokeWidth: 2 }} isAnimationActive={false} />
             ))}
           </AreaChart>
-        </ResponsiveContainer>
+        </ResponsiveContainer>}
       </div>
     </Card>
   )

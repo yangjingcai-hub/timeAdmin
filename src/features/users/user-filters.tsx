@@ -2,7 +2,7 @@ import { useState, type Ref } from 'react'
 import { Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ListSearch, ListSelect } from '@/components/ui/list-controls'
-import { registrationRanges, type RegistrationRange } from './mock-users'
+import { registrationRanges, type RegistrationRange } from './user-types'
 import type { UserFilterValues } from './user-list-model'
 
 interface UserFiltersProps {
@@ -16,7 +16,7 @@ export function UserFilters({ values, onChange, searchRef }: UserFiltersProps) {
 
   return (
     <div className="user-filters" role="group" aria-label="搜索与筛选">
-      <ListSearch ref={searchRef} aria-label="搜索用户ID或邮箱" placeholder="搜索用户ID / 邮箱" value={values.query}
+      <ListSearch ref={searchRef} aria-label="搜索用户ID或邮箱" placeholder="搜索用户ID / 邮箱" value={values.query} maxLength={256}
         onChange={(event) => onChange({ ...values, query: event.target.value })} />
       <ListSelect label="会员状态" value={values.membership}
         onChange={(event) => onChange({ ...values, membership: event.target.value as UserFilterValues['membership'] })}>
@@ -24,7 +24,7 @@ export function UserFilters({ values, onChange, searchRef }: UserFiltersProps) {
       </ListSelect>
       <ListSelect label="账号状态" value={values.account}
         onChange={(event) => onChange({ ...values, account: event.target.value as UserFilterValues['account'] })}>
-        <option value="all">全部</option><option value="active">正常</option><option value="disabled">已禁用</option>
+        <option value="all">全部</option><option value="active">正常</option><option value="disabled">已禁用</option><option value="deleted">已注销</option><option value="locked">暂时锁定</option>
       </ListSelect>
       <ListSelect label="注册时间" className="registration-select" value={values.registration}
         onChange={(event) => onChange({ ...values, registration: event.target.value as RegistrationRange })}>

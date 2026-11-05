@@ -1,130 +1,49 @@
-type PlanId = 'monthly' | 'yearly' | 'lifetime'
-
-interface PlanFields {
-  priceCents: number
-  recommended: boolean
-  available: boolean
+export type PlanId = 'monthly' | 'annual' | 'lifetime'
+export interface PlanConfig {
+  id: PlanId; priceCents: number; durationDays: number | null; recommended: boolean; available: boolean
+  version: number; updatedAtUtc: string
 }
-
-export type PlanConfig = PlanFields & (
-  | { id: 'monthly' | 'yearly'; durationDays: number }
-  | { id: 'lifetime'; durationDays: null }
-)
-
-export const planDetails: Record<PlanId, { name: string; description: string }> = {
-  monthly: { name: '月会员', description: '适合短期使用，灵活体验会员功能' },
-  yearly: { name: '年会员', description: '性价比更高，享受完整会员体验' },
-  lifetime: { name: '永久会员', description: '一次购买，永久享受会员权益' },
+export interface PlanResponse {
+  id: PlanId; name: string; amountFen: number; durationDays: number | null; recommended: boolean; available: boolean
+  version: number; updatedAtUtc: string; currency: 'CNY'
 }
-
-const defaultPlans: PlanConfig[] = [
-  { id: 'monthly', priceCents: 2_800, durationDays: 30, recommended: false, available: true },
-  { id: 'yearly', priceCents: 19_800, durationDays: 365, recommended: true, available: true },
-  { id: 'lifetime', priceCents: 39_800, durationDays: null, recommended: false, available: true },
-]
-
-export interface PlanDraft {
-  price: string
-  duration: string
-  recommended: boolean
-  available: boolean
+export const planDetails: Record<PlanId, { name: string }> = {
+  monthly: { name: '月会员' }, annual: { name: '年会员' }, lifetime: { name: '永久会员' },
 }
-
+export const toPlan = (plan: PlanResponse): PlanConfig => ({ ...plan, priceCents: plan.amountFen })
+export interface PlanDraft { price: string; duration: string; recommended: boolean; available: boolean }
 export type PlanErrors = Partial<Record<'price' | 'duration', string>>
-
-export interface PlanChange {
-  label: string
-  before: string
-  after: string
-}
-
-const storageKey = 'focustime-admin:mock-plans:v1'
+export interface PlanChange { label: string; before: string; after: string }
 const formatWhole = new Intl.NumberFormat('zh-CN').format
-
-function decimalParts(cents: number) {
-  return [Math.floor(cents / 100), String(cents % 100).padStart(2, '0')] as const
-}
-
-export function formatPlanPrice(cents: number) {
-  const [whole, fraction] = decimalParts(cents)
-  return `¥${formatWhole(whole)}.${fraction}`
-}
-
-export function formatPlanDuration(days: number | null) {
-  return days === null ? '永久有效' : `${days} 天`
-}
-
-export function saleStatus(available: boolean) {
-  return available ? '上架中' : '已下架'
-}
-
-function isPositiveInteger(value: unknown): value is number {
-  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0
-}
-
-export function readPlans(): PlanConfig[] {
-  try {
-    const stored: unknown = JSON.parse(localStorage.getItem(storageKey) ?? '{}')
-    if (typeof stored !== 'object' || stored === null || Array.isArray(stored)) return defaultPlans
-
-    const byId = stored as Partial<Record<PlanId, Partial<PlanConfig>>>
-    return defaultPlans.map((plan) => {
-      const saved = byId[plan.id]
-      if (!saved) return plan
-
-      const fields = {
-        priceCents: isPositiveInteger(saved.priceCents) ? saved.priceCents : plan.priceCents,
-        recommended: typeof saved.recommended === 'boolean' ? saved.recommended : plan.recommended,
-        available: typeof saved.available === 'boolean' ? saved.available : plan.available,
-      }
-      return plan.id === 'lifetime'
-        ? { ...plan, ...fields }
-        : { ...plan, ...fields, durationDays: isPositiveInteger(saved.durationDays) ? saved.durationDays : plan.durationDays }
-    })
-  } catch {
-    return defaultPlans
-  }
-}
-
-export function storePlans(plans: PlanConfig[]) {
-  try {
-    localStorage.setItem(storageKey, JSON.stringify(Object.fromEntries(plans.map((plan) => [plan.id, plan]))))
-  } catch {
-    // The current page can still use its in-memory copy.
-  }
-}
-
+const formatDateTime = new Intl.DateTimeFormat('sv-SE', {
+  timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
+})
+export const formatPlanUpdatedAt = (value?: string) => value ? formatDateTime.format(new Date(value)) : '—'
+const decimalParts = (cents: number) => [Math.floor(cents / 100), String(cents % 100).padStart(2, '0')] as const
+export function formatPlanPrice(cents: number) { const [whole, fraction] = decimalParts(cents); return `¥${formatWhole(whole)}.${fraction}` }
+export const formatPlanDuration = (days: number | null) => days === null ? '永久有效' : `${days} 天`
+export const saleStatus = (available: boolean) => available ? '上架中' : '已下架'
 export function createPlanDraft(plan: PlanConfig): PlanDraft {
-  return {
-    price: decimalParts(plan.priceCents).join('.'),
-    duration: plan.durationDays === null ? '' : String(plan.durationDays),
-    recommended: plan.recommended,
-    available: plan.available,
-  }
+  return { price: decimalParts(plan.priceCents).join('.'), duration: plan.durationDays === null ? '' : String(plan.durationDays),
+    recommended: plan.recommended, available: plan.available }
 }
-
 function parsePrice(input: string) {
   const text = input.trim()
   if (!/^(?:\d+(?:\.\d{0,2})?|\.\d{1,2})$/.test(text)) return null
-
   const [whole, fraction = ''] = text.split('.')
   const cents = Number(whole) * 100 + Number(fraction.padEnd(2, '0'))
-  return isPositiveInteger(cents) ? cents : null
+  return Number.isSafeInteger(cents) && cents > 0 && cents <= 100000000 ? cents : null
 }
-
 export function validatePlanDraft(plan: PlanConfig, draft: PlanDraft): { value: PlanConfig } | { errors: PlanErrors } {
   const priceCents = parsePrice(draft.price)
-  const duration = draft.duration.trim()
-  const days = /^\d+$/.test(duration) ? Number(duration) : NaN
+  const days = /^\d+$/.test(draft.duration.trim()) ? Number(draft.duration.trim()) : NaN
   const errors: PlanErrors = {}
-  if (priceCents === null) errors.price = '请输入大于 0 的价格，最多保留两位小数。'
-  if (plan.id !== 'lifetime' && !isPositiveInteger(days)) errors.duration = '请输入大于 0 的整数天数。'
+  if (priceCents === null) errors.price = '请输入大于 0、最多 100 万元的价格，最多保留两位小数。'
+  if (plan.id !== 'lifetime' && (!Number.isSafeInteger(days) || days < 1 || days > 36500)) errors.duration = '请输入 1–36500 的整数天数。'
   if (priceCents === null || errors.duration) return { errors }
-
-  const fields = { priceCents, recommended: draft.recommended, available: draft.available }
-  return { value: plan.id === 'lifetime' ? { ...plan, ...fields } : { ...plan, ...fields, durationDays: days } }
+  return { value: { ...plan, priceCents, durationDays: plan.id === 'lifetime' ? null : days,
+    recommended: draft.recommended, available: draft.available } }
 }
-
 export function getPlanChanges(before: PlanConfig, after: PlanConfig): PlanChange[] {
   const changes: PlanChange[] = []
   if (before.priceCents !== after.priceCents) changes.push({ label: '套餐价格', before: formatPlanPrice(before.priceCents), after: formatPlanPrice(after.priceCents) })

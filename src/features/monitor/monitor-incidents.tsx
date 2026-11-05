@@ -1,4 +1,4 @@
-import { Bell, Check, ChevronRight, TriangleAlert } from 'lucide-react'
+import { CheckCircle2, ChevronRight, CircleHelp, TriangleAlert } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,68 +11,59 @@ interface IncidentsProps {
 }
 
 export function IncidentStatusBadge({ incident }: { incident: Incident }) {
-  const recovered = incident.recoveredAt !== null
-  return <Badge className="monitor-badge" data-tone={recovered ? 'healthy' : incident.severity === 'danger' ? 'unavailable' : 'degraded'}>{recovered ? '已恢复' : '待处理'}</Badge>
+  return <Badge className="monitor-badge" data-tone={incident.recoveredAt !== null ? 'healthy' : 'unavailable'}>
+    {incident.recoveredAt !== null ? '已恢复' : '异常中'}
+  </Badge>
 }
 
-export function MonitorIncidents({ incidents, onDetails }: IncidentsProps) {
-  return (
-    <Card className="monitor-panel monitor-incidents" aria-labelledby="monitor-incidents-title">
-      <CardHeader>
-        <CardTitle id="monitor-incidents-title" className="monitor-panel-title"><TriangleAlert size={23} aria-hidden="true" />最近异常记录 <span>（近 24 小时）</span></CardTitle>
-      </CardHeader>
-      <Table className="monitor-table" aria-label="最近异常记录">
-        <TableHeader>
-          <TableRow>{['发生时间', '影响服务', '异常类型', '错误信息', '影响范围', '状态', '操作'].map((title) => <TableHead key={title}>{title}</TableHead>)}</TableRow>
-        </TableHeader>
-        <TableBody>
-          {incidents.map((incident) => (
-            <TableRow key={incident.id}>
-              <TableCell><time dateTime={new Date(incident.occurredAt).toISOString()}>{formatCheckTime(incident.occurredAt)}</time></TableCell>
-              <TableCell>{services[incident.service].name}</TableCell>
-              <TableCell><Badge className="monitor-badge" data-tone={incident.severity === 'danger' ? 'unavailable' : 'degraded'}>{incident.type}</Badge></TableCell>
-              <TableCell className="monitor-incident-message">{incident.error}</TableCell>
-              <TableCell className="monitor-incident-message">{incident.impact}</TableCell>
-              <TableCell><IncidentStatusBadge incident={incident} /></TableCell>
-              <TableCell><Button type="button" variant="ghost" size="sm" className="monitor-incident-link"
-                aria-label={`查看详情 · ${services[incident.service].name} · ${incident.type}`}
-                onClick={(event) => onDetails(incident, event.currentTarget)}>查看详情</Button></TableCell>
-            </TableRow>
-          ))}
-          {incidents.length === 0 && <TableRow><TableCell colSpan={7} className="monitor-no-incidents">近 24 小时内暂无异常记录</TableCell></TableRow>}
-        </TableBody>
-      </Table>
-    </Card>
-  )
+export function MonitorIncidents({ incidents, onDetails, message, historyStartedAt }: IncidentsProps & {
+  message?: string; historyStartedAt?: number
+}) {
+  return <Card className="monitor-panel monitor-incidents" aria-labelledby="monitor-incidents-title">
+    <CardHeader><CardTitle id="monitor-incidents-title" className="monitor-panel-title">
+      <TriangleAlert size={23} aria-hidden="true" />最近异常记录 <span>（近 24 小时）</span>
+    </CardTitle></CardHeader>
+    <Table className="monitor-table" aria-label="最近异常记录">
+      <TableHeader><TableRow>
+        {['发生时间', '影响服务', '异常类型', '错误信息', '影响范围', '状态', '操作'].map(title => <TableHead key={title}>{title}</TableHead>)}
+      </TableRow></TableHeader>
+      <TableBody>
+        {incidents.map(incident => <TableRow key={incident.id}>
+          <TableCell><time dateTime={new Date(incident.occurredAt).toISOString()}>{formatCheckTime(incident.occurredAt)}</time></TableCell>
+          <TableCell>{services[incident.service].name}</TableCell>
+          <TableCell><Badge className="monitor-badge" data-tone={incident.severity === 'danger' ? 'unavailable' : 'warning'}>{incident.type}</Badge></TableCell>
+          <TableCell className="monitor-incident-message">{incident.error}</TableCell>
+          <TableCell className="monitor-incident-message">{incident.impact ?? '暂未统计'}</TableCell>
+          <TableCell><IncidentStatusBadge incident={incident} /></TableCell>
+          <TableCell><Button type="button" variant="ghost" size="sm" className="monitor-incident-link"
+            aria-label={`查看详情 · ${services[incident.service].name} · ${incident.type}`}
+            onClick={event => onDetails(incident, event.currentTarget)}>查看详情</Button></TableCell>
+        </TableRow>)}
+        {!incidents.length && <TableRow><TableCell colSpan={7} className="monitor-no-incidents">
+          {message ?? '近 24 小时内暂无异常记录'}
+        </TableCell></TableRow>}
+      </TableBody>
+    </Table>
+    {historyStartedAt !== undefined && <p className="monitor-data-note">每 30 秒检查。记录范围为当前服务进程观察到的结果，始于 {formatCheckTime(historyStartedAt)}。重启后重新记录，已恢复的异常保留 24 小时。</p>}
+  </Card>
 }
 
-export function MonitorAlerts({ incidents, onDetails }: IncidentsProps) {
-  return (
-    <Card className="monitor-panel monitor-alerts" aria-labelledby="monitor-alerts-title">
-      <CardHeader><CardTitle id="monitor-alerts-title" className="monitor-panel-title"><Bell size={23} aria-hidden="true" />告警状态</CardTitle></CardHeader>
-      {incidents.length === 0 ? (
-        <div className="monitor-alert-empty">
-          <span><Check size={23} strokeWidth={3} aria-hidden="true" /></span>
-          <strong>当前无待处理告警</strong>
-          <p>如出现服务异常，将在此处显示告警信息。</p>
-        </div>
-      ) : (
-        <div className="monitor-alert-body">
-          <p className="monitor-alert-count">{incidents.length} 条待处理告警</p>
-          <ul>
-            {incidents.map((incident) => (
-              <li key={incident.id}>
-                <Button type="button" variant="ghost" className="monitor-alert-button" data-tone={incident.severity === 'danger' ? 'unavailable' : 'degraded'}
-                  onClick={(event) => onDetails(incident, event.currentTarget)}>
-                  <TriangleAlert size={18} aria-hidden="true" />
-                  <span><strong>{services[incident.service].name} · {incident.type}</strong><span>{incident.error}</span></span>
-                  <ChevronRight size={16} aria-hidden="true" />
-                </Button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </Card>
-  )
+export function MonitorAlerts({ incidents, onDetails, unknown }: IncidentsProps & { unknown: boolean }) {
+  const active = incidents.length > 0
+  const Icon = active ? TriangleAlert : unknown ? CircleHelp : CheckCircle2
+  return <Card className="monitor-alerts" data-tone={active ? 'unavailable' : unknown ? 'unknown' : 'healthy'}
+    aria-labelledby="monitor-alerts-title">
+    <Icon size={33} aria-hidden="true" />
+    <div className="monitor-alert-copy">
+      <h2 id="monitor-alerts-title">{active ? `当前有 ${incidents.length} 项待处理告警` : unknown ? '告警状态尚未完全确认' : '当前无待处理告警'}</h2>
+      <p>{active ? '存在尚未恢复的服务异常，请查看详情。' : unknown ? '部分监控结果未知，暂时无法确认所有服务的告警状态。' : '如出现新的服务异常，将在此处显示告警信息。'}</p>
+    </div>
+    {active && <div className="monitor-alert-links">
+      {incidents.map(incident => <Button key={incident.id} type="button" variant="ghost" className="monitor-incident-link"
+        aria-label={`查看告警详情 · ${services[incident.service].name}`}
+        onClick={event => onDetails(incident, event.currentTarget)}>
+        {incidents.length > 1 ? services[incident.service].name : ''}查看告警详情<ChevronRight size={16} aria-hidden="true" />
+      </Button>)}
+    </div>}
+  </Card>
 }

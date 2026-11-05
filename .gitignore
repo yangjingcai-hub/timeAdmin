@@ -4,3 +4,20 @@ dist/
 *.tsbuildinfo
 *.local
 *.log
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+
+# Tests and local verification artifacts
+**/__tests__/
+**/tests/
+**/test/
+**/fixtures/
+**/*.test.*
+**/*.spec.*
+coverage/
+playwright-report/
+test-results/
+.artifacts/

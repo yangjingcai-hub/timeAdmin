@@ -1,26 +1,33 @@
 import { Crown, UserRoundPlus, UsersRound, type LucideIcon } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Sparkline } from '@/components/ui/sparkline'
-import { activeMembers, formatNumber, formatShare, summary } from './mock-data'
+import { formatNumber, formatShare, type OverviewSummary, type TrendPoint } from './overview-api'
 
-const stats: { label: string; value: number; caption: string; detail: string; icon: LucideIcon; theme: string; sparkline: string }[] = [
-  { label: '总注册用户', value: summary.totalUsers, caption: '较上 7 天', detail: `+${summary.usersWeekChange}`, icon: UsersRound, theme: 'orange', sparkline: 'M1 36C9 29 13 18 23 23S41 34 53 17 69 14 75 15 86 12 94 5' },
-  { label: '有效会员', value: activeMembers, caption: '会员占比', detail: formatShare(activeMembers / summary.totalUsers), icon: Crown, theme: 'green', sparkline: 'M1 30C11 22 15 13 27 17S45 27 57 15 71 2 80 7 90 7 94 4' },
-  { label: '今日新增用户', value: summary.newUsersToday, caption: '较昨日', detail: `+${summary.usersDayChange}`, icon: UserRoundPlus, theme: 'purple', sparkline: 'M1 30C13 18 18 12 30 17S46 27 60 13 76 6 83 8 91 6 94 4' },
-]
+function sparkline(values: number[]) {
+  const low = Math.min(...values)
+  const span = Math.max(...values) - low
+  return values.map((value, index) =>
+    `${index ? 'L' : 'M'}${1 + 93 * index / (values.length - 1)} ${span ? 36 - (value - low) / span * 29 : 24}`).join(' ')
+}
 
-export function StatCards() {
+export function StatCards({ summary, trend }: { summary?: OverviewSummary; trend?: TrendPoint[] }) {
+  const recent = trend?.slice(-7) ?? []
+  const stats: { label: string; value?: number; caption: string; detail?: string; icon: LucideIcon; theme: string; values: number[] }[] = [
+    { label: '总注册用户', value: summary?.totalUsers, caption: '近 7 天新增', detail: summary && formatNumber(summary.newUsersLastSevenDays), icon: UsersRound, theme: 'orange', values: recent.map(day => day.users) },
+    { label: '有效会员', value: summary?.activeMembers, caption: '会员占比', detail: summary && formatShare(summary.memberShare), icon: Crown, theme: 'green', values: recent.map(day => day.members) },
+    { label: '今日新增用户', value: summary?.newUsersToday, caption: '较昨日', detail: summary && `${summary.usersDayChange > 0 ? '+' : ''}${formatNumber(summary.usersDayChange)}`, icon: UserRoundPlus, theme: 'purple', values: recent.map(day => day.users) },
+  ]
   return (
     <section className="stat-grid" aria-label="关键指标">
-      {stats.map(({ icon: Icon, label, value, caption, detail, theme, sparkline }) => (
+      {stats.map(({ icon: Icon, label, value, caption, detail, theme, values }) => (
         <Card key={label} className={`stat-card stat-${theme}`} aria-label={label}>
           <span className="stat-icon"><Icon size={27} strokeWidth={2.25} aria-hidden="true" fill={theme === 'green' ? 'currentColor' : 'none'} /></span>
           <div className="stat-copy">
             <h2>{label}</h2>
-            <p className="stat-value">{formatNumber(value)}</p>
-            <p className="stat-caption">{caption} <strong>{detail}</strong></p>
+            <p className="stat-value">{value === undefined ? '—' : formatNumber(value)}</p>
+            <p className="stat-caption">{caption} <strong>{detail ?? '—'}</strong></p>
           </div>
-          <Sparkline path={sparkline} />
+          {values.length > 1 && <Sparkline path={sparkline(values)} />}
         </Card>
       ))}
     </section>

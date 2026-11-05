@@ -8,6 +8,10 @@
 }
 
 .user-stats .stat-card {
+  position: relative;
+  border: 1px solid #e8ebf2;
+  text-align: left;
+  cursor: pointer;
   min-height: 116px;
   gap: 14px;
   padding: 16px 13px;
@@ -21,12 +25,25 @@
 
 .user-stats .stat-green { background: #f7fafc; }
 .user-stats .stat-purple { background: #faf8ff; }
-.user-stats .stat-red {
-  --stat-color: #e32933;
-  --icon-bg: #feecee;
-  border-color: #f9e6e9;
-  background: #fff9fa;
+.user-stats .stat-gray {
+  --stat-color: #66728a;
+  --icon-bg: #eceff4;
+  background: #f7f8fa;
 }
+.user-stats .stat-card[aria-pressed='true'] { border-color: #fd7e05; }
+.user-stats .stat-card:focus-visible { outline: 2px solid #fd7e05; outline-offset: 3px; }
+.user-stats .stat-copy > span { display: block; }
+.user-stats .user-stat-label { font-size: 15px; font-weight: 700; }
+.user-status-info { position: absolute; right: 12px; top: 12px; color: #66728a; }
+.user-quick-filters { display: flex; gap: 8px; margin: -3px 0 14px; }
+.user-quick-filters button { display: inline-flex; align-items: center; gap: 8px; padding: 5px 10px; border: 1px solid #ffd4ad; border-radius: 7px; background: #fff2e5; color: #af5300; font-size: 13px; cursor: pointer; }
+.user-request-state { display: grid; gap: 12px; justify-items: center; align-content: center; min-height: 230px; padding: 25px; color: var(--secondary-text); font-size: 14px; }
+.user-request-state button { border: 1px solid var(--border); cursor: pointer; }
+.user-account-locked { color: #976019; background: #fff1d9; }
+.user-account-deleted { color: #616b7b; background: #eceef3; }
+.user-detail-identity > div { min-width: 0; overflow-wrap: anywhere; }
+.user-menu-item[data-disabled] { opacity: .5; cursor: default; }
+.managed-user-id > span { display: block; max-width: 138px; overflow: hidden; text-overflow: ellipsis; }
 
 .user-stats .stat-copy { min-width: 0; padding-top: 0; white-space: normal; }
 .user-stats .stat-copy h2 { font-size: 15px; }
@@ -77,6 +94,8 @@
 .user-nonmember { background: #eeeff4; color: #505b74; }
 .user-account-active { background: #e0f7e8; color: #13763b; }
 .user-account-disabled { background: #ffe6e8; color: #b8212d; }
+.user-orders-link { width: 100%; min-height: 39px; border: 1px solid var(--border); border-radius: 9px; color: #40506b; }
+.user-link-not-found { margin-bottom: 14px; color: #a94f00; font-size: 13px; }
 
 .user-row-actions { display: flex; justify-content: center; align-items: center; gap: 3px; }
 .user-row-actions button { height: 30px; cursor: pointer; }
@@ -105,27 +124,6 @@
 .user-menu-item[data-highlighted] { background: #f4f4f9; }
 .user-menu-item[data-danger] { color: #bd2633; }
 .user-menu-item[data-danger][data-highlighted] { background: #fff0f0; }
-
-.user-confirm-dialog {
-  top: 50%;
-  left: 50%;
-  width: min(414px, calc(100vw - 32px));
-  max-height: calc(100dvh - 32px);
-  padding: 23px;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  transform: translate(-50%, -50%);
-}
-.user-confirm-icon { display: grid; place-items: center; width: 44px; height: 44px; margin-bottom: 13px; border-radius: 12px; background: #ffecef; color: #bb2534; }
-.user-confirm-restore { background: #e5f8ec; color: #167642; }
-.user-confirm-dialog strong { color: var(--foreground); overflow-wrap: anywhere; }
-.user-confirm-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 21px; }
-.user-confirm-actions button { cursor: pointer; }
-.user-confirm-actions .user-cancel-button { border: 1px solid var(--border); }
-.user-confirm-actions .user-confirm-danger { background: #c8303c; }
-.user-confirm-actions .user-confirm-danger:hover { background: #ad2330; }
-.user-confirm-actions .user-confirm-primary { background: #fd7e05; color: #1e2534; }
-.user-confirm-actions .user-confirm-primary:hover { background: #f27400; }
 
 @media (max-width: 1120px) {
   .user-stats .stat-card { gap: 9px; padding-inline: 10px; }

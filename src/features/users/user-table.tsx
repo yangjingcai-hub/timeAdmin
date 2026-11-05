@@ -1,19 +1,20 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import { Ban, Crown, Ellipsis, ShieldCheck } from 'lucide-react'
+import { Ban, Crown, Ellipsis } from 'lucide-react'
 import { useRef } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ListEmpty } from '@/components/ui/list-controls'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import type { AccountStatus, User } from './mock-users'
+import type { AccountStatus, User } from './user-types'
 import { accountLabels, membershipExpiry, membershipPlan } from './user-display'
 
-export type UserAction = 'details' | 'membership' | 'confirm'
+export type UserAction = 'details' | 'membership'
 
 interface UserTableProps {
   users: User[]
   onAction: (user: User, action: UserAction, trigger: HTMLButtonElement) => void
   onClearFilters: () => void
+  emptyMessage?: string
 }
 
 export function AccountBadge({ status }: { status: AccountStatus }) {
@@ -23,8 +24,6 @@ export function AccountBadge({ status }: { status: AccountStatus }) {
 function UserRowActions({ user, onAction }: Pick<UserTableProps, 'onAction'> & { user: User }) {
   const menuTrigger = useRef<HTMLButtonElement>(null)
   const opensDialog = useRef(false)
-  const isDisabled = user.status === 'disabled'
-  const StatusIcon = isDisabled ? ShieldCheck : Ban
 
   function selectAction(action: UserAction) {
     if (!menuTrigger.current) return
@@ -48,8 +47,8 @@ function UserRowActions({ user, onAction }: Pick<UserTableProps, 'onAction'> & {
               if (opensDialog.current) event.preventDefault()
               opensDialog.current = false
             }}>
-            <DropdownMenu.Item className="user-menu-item" data-danger={!isDisabled || undefined} onSelect={() => selectAction('confirm')}>
-              <StatusIcon size={16} aria-hidden="true" />{isDisabled ? '恢复账号' : '禁用账号'}
+            <DropdownMenu.Item className="user-menu-item" disabled title="后端尚未开放账号状态修改接口">
+              <Ban size={16} aria-hidden="true" />账号状态修改暂未开放
             </DropdownMenu.Item>
             <DropdownMenu.Item className="user-menu-item" onSelect={() => selectAction('membership')}>
               <Crown size={16} aria-hidden="true" />查看会员信息
@@ -61,7 +60,7 @@ function UserRowActions({ user, onAction }: Pick<UserTableProps, 'onAction'> & {
   )
 }
 
-export function UserTable({ users, onAction, onClearFilters }: UserTableProps) {
+export function UserTable({ users, onAction, onClearFilters, emptyMessage = '没有找到匹配的用户' }: UserTableProps) {
   return (
     <div className="list-table-frame">
       <Table className="list-data-table managed-user-table" aria-label="用户列表">
@@ -73,7 +72,7 @@ export function UserTable({ users, onAction, onClearFilters }: UserTableProps) {
         <TableBody>
           {users.map((user) => (
             <TableRow key={user.id}>
-              <TableCell className="managed-user-id">{user.id}</TableCell>
+              <TableCell className="managed-user-id"><span title={user.id}>{user.id}</span></TableCell>
               <TableCell>{user.email}</TableCell>
               <TableCell>
                 {user.membership
@@ -90,7 +89,7 @@ export function UserTable({ users, onAction, onClearFilters }: UserTableProps) {
           ))}
         </TableBody>
       </Table>
-      {users.length === 0 && <ListEmpty message="没有找到匹配的用户" onClear={onClearFilters} />}
+      {users.length === 0 && <ListEmpty message={emptyMessage} onClear={onClearFilters} />}
     </div>
   )
 }

@@ -4,14 +4,15 @@
 }
 
 .audit-list[data-docked='true'][data-detail-open='true'] { width: calc(100% - 440px); }
-.audit-filters { display: grid; gap: 15px; margin-bottom: 23px; }
-.audit-filters .list-search { height: 45px; }
+.audit-filters { display: grid; grid-template-columns: minmax(260px, 1.55fr) repeat(3, minmax(190px, 1fr)); gap: 12px; margin-bottom: 23px; padding: 12px; border: 1px solid #eef0f5; border-radius: 15px; background: #fff; }
+.audit-filters .list-search { min-width: 0; height: 44px; }
 .audit-filters .list-search input { font-size: 14px; }
-.audit-filter-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-.audit-filter-row .audit-select { width: 100%; height: 44px; }
-.audit-filter-row .audit-select > .list-select-icon { left: 12px; right: auto; }
-.audit-filter-row .audit-select > span { left: 37px; }
-.audit-filter-row .audit-select select { padding-left: 104px; }
+.audit-filters .audit-select { min-width: 0; width: 100%; height: 44px; }
+.audit-filters .audit-select > .list-select-icon { left: 12px; right: auto; }
+.audit-filters .audit-select > span { left: 37px; }
+.audit-filters .audit-select select { padding-left: 104px; }
+.audit-date-range { grid-column: 1 / -1; }
+.audit-list[data-docked='true'][data-detail-open='true'] .audit-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
 .audit-date-range { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 13px; padding: 11px 13px; border: 1px solid #e7e9f2; border-radius: 10px; background: #fff; }
 .audit-date-range label { display: grid; gap: 4px; color: #485671; font-size: 13px; font-weight: 600; }
@@ -74,12 +75,15 @@
 .audit-detail .audit-detail-message[data-result='success'] { border-color: #def3e4; background: #f3fbf5; color: #13723a; }
 .audit-detail .audit-detail-message[data-result='failure'] { border-color: #f7dfe2; background: #fff4f5; color: #9f2836; }
 
+@media (max-width: 1240px) {
+  .audit-filters { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
+}
 @media (max-width: 700px) {
-  .audit-filter-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+  .audit-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
 }
 
 @media (max-width: 540px) {
-  .audit-filter-row { grid-template-columns: minmax(0, 1fr); }
+  .audit-filters, .audit-list[data-docked='true'][data-detail-open='true'] .audit-filters { grid-template-columns: minmax(0, 1fr); }
   .audit-detail { border-radius: 0; }
 }
 

@@ -1,9 +1,9 @@
-import type { AccountStatus, Membership } from './mock-users'
+import type { AccountStatus, Membership } from './user-types'
 
 export const formatUserCount = new Intl.NumberFormat('zh-CN').format
-export const accountLabels: Record<AccountStatus, string> = { active: '正常', disabled: '已禁用' }
+export const accountLabels: Record<AccountStatus, string> = { active: '正常', disabled: '已禁用', deleted: '已注销', locked: '暂时锁定' }
 
-const planLabels: Record<Membership['plan'], string> = { monthly: '月会员', yearly: '年会员', lifetime: '永久会员' }
+const planLabels: Record<Membership['plan'], string> = { monthly: '月会员', annual: '年会员', lifetime: '永久会员' }
 
 export function membershipPlan(membership: Membership | null) {
   return membership ? planLabels[membership.plan] : '—'
