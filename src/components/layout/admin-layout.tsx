@@ -1,6 +1,8 @@
 import { Activity, Bell, Box, ClipboardList, House, NotebookText, UserRound } from 'lucide-react'
 import { useLayoutEffect } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
+import { NotificationPoptip } from '@/features/notifications/notification-poptip'
+import { NotificationProvider } from '@/features/notifications/notification-provider'
 import { AdminAccountMenu } from './admin-account-menu'
 import './admin-layout.css'
 
@@ -24,6 +26,7 @@ export function AdminLayout() {
             <li><NavLink end to="/plans" className={navLinkClass} title="套餐管理"><Box aria-hidden="true" /><span>套餐管理</span></NavLink></li>
             <li><NavLink end to="/monitor" className={navLinkClass} title="系统监控"><Activity aria-hidden="true" /><span>系统监控</span></NavLink></li>
             <li><NavLink end to="/audit" className={navLinkClass} title="操作日志"><ClipboardList aria-hidden="true" /><span>操作日志</span></NavLink></li>
+            <li><NavLink end to="/notifications" className={navLinkClass} title="通知中心"><Bell aria-hidden="true" /><span>通知中心</span></NavLink></li>
           </ul>
         </nav>
         <svg aria-hidden="true" className="sidebar-hills" viewBox="0 0 240 178" preserveAspectRatio="none">
@@ -36,8 +39,10 @@ export function AdminLayout() {
         </svg>
       </aside>
       <div className="workspace">
-        <AdminHeader />
-        <main className="admin-container admin-content"><Outlet /></main>
+        <NotificationProvider>
+          <AdminHeader />
+          <main className="admin-container admin-content"><Outlet /></main>
+        </NotificationProvider>
       </div>
     </div>
   )
@@ -51,9 +56,7 @@ function AdminHeader() {
   return (
     <header className="admin-topbar" aria-label="后台顶部导航">
       <div className="admin-container admin-topbar-inner">
-        <span className="notification" role="img" aria-label="通知图标" title="通知暂未开放">
-          <Bell size={23} aria-hidden="true" /><i />
-        </span>
+        <NotificationPoptip />
         <span className="admin-topbar-separator" aria-hidden="true" />
         <AdminAccountMenu />
       </div>

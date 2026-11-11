@@ -1,5 +1,5 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import { Ban, Crown, Ellipsis } from 'lucide-react'
+import { Ban, CircleCheck, Crown, Ellipsis, UserRound } from 'lucide-react'
 import { useRef } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import type { AccountStatus, User } from './user-types'
 import { accountLabels, membershipExpiry, membershipPlan } from './user-display'
 
-export type UserAction = 'details' | 'membership'
+export type UserAction = 'details' | 'disable' | 'restore'
 
 interface UserTableProps {
   users: User[]
@@ -17,13 +17,16 @@ interface UserTableProps {
   emptyMessage?: string
 }
 
-export function AccountBadge({ status }: { status: AccountStatus }) {
-  return <Badge className={`user-badge user-account-${status}`}>{accountLabels[status]}</Badge>
+export function AccountBadge({ status, detailed = false }: { status: AccountStatus; detailed?: boolean }) {
+  return <Badge className={`user-badge user-account-${status}${detailed ? ' user-detail-badge' : ''}`}>
+    {detailed && status === 'active' ? <><CircleCheck size={16} aria-hidden="true" />账号正常</> : accountLabels[status]}
+  </Badge>
 }
 
 function UserRowActions({ user, onAction }: Pick<UserTableProps, 'onAction'> & { user: User }) {
   const menuTrigger = useRef<HTMLButtonElement>(null)
   const opensDialog = useRef(false)
+  const disabled = user.status === 'disabled'
 
   function selectAction(action: UserAction) {
     if (!menuTrigger.current) return
@@ -33,8 +36,6 @@ function UserRowActions({ user, onAction }: Pick<UserTableProps, 'onAction'> & {
 
   return (
     <div className="user-row-actions">
-      <Button type="button" variant="ghost" size="sm" className="user-detail-button" aria-label={`详情 ${user.id}`}
-        onClick={(event) => onAction(user, 'details', event.currentTarget)}>详情</Button>
       <DropdownMenu.Root modal={false}>
         <DropdownMenu.Trigger asChild>
           <Button ref={menuTrigger} type="button" variant="ghost" size="icon" className="user-more-button" aria-label={`更多操作 ${user.id}`}>
@@ -42,16 +43,18 @@ function UserRowActions({ user, onAction }: Pick<UserTableProps, 'onAction'> & {
           </Button>
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
-          <DropdownMenu.Content className="user-action-menu" align="end" sideOffset={5}
+          <DropdownMenu.Content className="user-action-menu" align="end" sideOffset={6} collisionPadding={12} aria-label="用户操作"
             onCloseAutoFocus={(event) => {
               if (opensDialog.current) event.preventDefault()
               opensDialog.current = false
             }}>
-            <DropdownMenu.Item className="user-menu-item" disabled title="后端尚未开放账号状态修改接口">
-              <Ban size={16} aria-hidden="true" />账号状态修改暂未开放
+            <DropdownMenu.Item className="user-menu-item" onSelect={() => selectAction('details')}>
+              <UserRound size={18} aria-hidden="true" />查看详情
             </DropdownMenu.Item>
-            <DropdownMenu.Item className="user-menu-item" onSelect={() => selectAction('membership')}>
-              <Crown size={16} aria-hidden="true" />查看会员信息
+            <DropdownMenu.Separator className="user-menu-separator" />
+            <DropdownMenu.Item className="user-menu-item" data-danger={!disabled || undefined} disabled={user.status === 'deleted'}
+              onSelect={() => selectAction(disabled ? 'restore' : 'disable')}>
+              {disabled ? <><CircleCheck size={18} aria-hidden="true" />恢复账号</> : <><Ban size={18} aria-hidden="true" />禁用账号</>}
             </DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Portal>

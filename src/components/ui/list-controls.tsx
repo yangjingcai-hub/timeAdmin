@@ -13,11 +13,11 @@ export function ListSearch(props: Omit<ComponentProps<'input'>, 'type'>) {
   )
 }
 
-export function ListSelect({ label, className, icon: Icon, ...props }: ComponentProps<'select'> & { label: string; icon?: LucideIcon }) {
+export function ListSelect({ label, className, icon: Icon, hideLabel = false, ...props }: ComponentProps<'select'> & { label: string; icon?: LucideIcon; hideLabel?: boolean }) {
   return (
     <label className={cn('list-select', className)}>
       {Icon && <Icon className="list-select-icon" size={16} aria-hidden="true" />}
-      <span>{label}</span>
+      {!hideLabel && <span>{label}</span>}
       <select {...props} aria-label={props['aria-label'] ?? label} />
       <ChevronDown size={15} aria-hidden="true" />
     </label>
@@ -48,20 +48,20 @@ interface ListPaginationProps {
   total: number
   page: number
   pageCount: number
-  pageSize: number
+  pageSize?: number
   navigationLabel: string
   countLabel: string
   onPageChange: (page: number) => void
-  onPageSizeChange: (size: number) => void
+  onPageSizeChange?: (size: number) => void
 }
 
 export function ListPagination({ total, page, pageCount, pageSize, navigationLabel, countLabel, onPageChange, onPageSizeChange }: ListPaginationProps) {
   return (
     <footer className="list-pagination">
       <p role="status" className="list-results-count">共 {formatCount(total)} {countLabel}</p>
-      <ListSelect label="每页" className="list-page-size" aria-label="每页条数" value={pageSize} onChange={(event) => onPageSizeChange(Number(event.target.value))}>
+      {onPageSizeChange && <ListSelect label="每页" className="list-page-size" aria-label="每页条数" value={pageSize} onChange={(event) => onPageSizeChange(Number(event.target.value))}>
         {pageSizes.map((size) => <option key={size} value={size}>{size}</option>)}
-      </ListSelect>
+      </ListSelect>}
       {pageCount > 0 && (
         <nav className="list-pages" aria-label={navigationLabel}>
           <Button type="button" variant="ghost" size="icon" className="list-page-arrow" aria-label="上一页" disabled={page === 1} onClick={() => onPageChange(page - 1)}>

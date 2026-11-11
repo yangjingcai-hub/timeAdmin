@@ -6,6 +6,7 @@ import { AuditLogPage } from '@/features/audit/audit-log-page'
 import { AdminAuthProvider, RequireAdministrator } from '@/features/auth/admin-auth'
 import { LoginPage } from '@/features/auth/login-page'
 import { SystemMonitorPage } from '@/features/monitor/system-monitor-page'
+import { NotificationCenterPage } from '@/features/notifications/notification-center-page'
 import { OrderManagementPage } from '@/features/orders/order-management-page'
 import { OverviewPage } from '@/features/overview/overview-page'
 import { PlanManagementPage } from '@/features/plans/plan-management-page'
@@ -26,6 +27,7 @@ createRoot(document.getElementById('root')!).render(
               <Route path="plans" element={<PlanManagementPage />} />
               <Route path="monitor" element={<SystemMonitorPage />} />
               <Route path="audit" element={<AuditLogPage />} />
+              <Route path="notifications" element={<NotificationCenterPage />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

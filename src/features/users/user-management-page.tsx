@@ -6,10 +6,10 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ListPagination } from '@/components/ui/list-controls'
 import { useAdminAuth } from '@/features/auth/admin-auth'
-import { ApiError } from '@/lib/api'
 import type { User, UserStatsData } from './user-types'
-import { toUser, usersPath, type AdminUserResponse, type UsersPage } from './user-api'
+import { toUser, usersPath, type UsersPage } from './user-api'
 import { UserDialog } from './user-dialog'
+import { UserActionConfirmation } from './user-action-confirmation'
 import { UserFilters } from './user-filters'
 import { defaultUserFilters, quickFilterLabels, type UserFilterValues } from './user-list-model'
 import { UserStats } from './user-stats'
@@ -23,21 +23,22 @@ export function UserManagementPage() {
   const [filters, setFilters] = useState(defaultUserFilters)
   const [requestedPage, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
-  const [selection, setSelection] = useState<{ id: string; action: UserAction } | null>(null)
+  const [selection, setSelection] = useState<User | null>(null)
+  const [confirmation, setConfirmation] = useState<{ user: User; action: 'disable' | 'restore' } | null>(null)
   const [result, setResult] = useState<{ path: string; data: UsersPage } | null>(null)
   const [stats, setStats] = useState<UserStatsData | null>(null)
   const [statusNote, setStatusNote] = useState('')
   const [failure, setFailure] = useState('')
-  const [detail, setDetail] = useState<{ id: string; user: User } | null>(null)
-  const [detailFailure, setDetailFailure] = useState('')
+  const [notice, setNotice] = useState('')
   const [reload, setReload] = useState(0)
-  const [detailReload, setDetailReload] = useState(0)
   const searchRef = useRef<HTMLInputElement>(null)
   const dialogTrigger = useRef<HTMLButtonElement>(null)
   const effectiveFilters = linkedId ? { ...defaultUserFilters, query: linkedId } : filters
   const path = usersPath(effectiveFilters, requestedPage, pageSize)
   const data = result?.path === path ? result.data : undefined
   const detailId = selection?.id ?? linkedId
+  const linkedUser = data?.items.find(user => user.id === linkedId)
+  const selectedUser = selection ?? (linkedUser ? toUser(linkedUser) : null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -53,17 +54,10 @@ export function UserManagementPage() {
   }, [path, request, reload])
 
   useEffect(() => {
-    if (!detailId) return
-    const controller = new AbortController()
-    setDetail(null); setDetailFailure('')
-    request<AdminUserResponse>(`/api/v1/admin/users/${encodeURIComponent(detailId)}`, { signal: controller.signal }).then(user => {
-      if (!controller.signal.aborted) setDetail({ id: detailId, user: toUser(user) })
-    }).catch(error => {
-      if (!controller.signal.aborted) setDetailFailure(error instanceof ApiError && error.status === 404
-        ? '未找到该用户，账号可能已被删除。' : '用户详情获取失败，请重试。')
-    })
-    return () => controller.abort()
-  }, [detailId, request, detailReload])
+    if (!notice) return
+    const timer = window.setTimeout(() => setNotice(''), 4500)
+    return () => window.clearTimeout(timer)
+  }, [notice])
 
   function clearLinkedUser() {
     if (!linkedId) return
@@ -77,8 +71,20 @@ export function UserManagementPage() {
     if (linkedId) setFilters({ ...defaultUserFilters, query: linkedId })
     clearLinkedUser()
   }
+  async function copyUserId(user: User) {
+    try {
+      await navigator.clipboard.writeText(user.id)
+      setNotice(`已复制用户ID：${user.id}`)
+      return true
+    } catch {
+      setNotice('复制失败，请重试或从用户ID处手动复制。')
+      return false
+    }
+  }
   function openUserAction(user: User, action: UserAction, trigger: HTMLButtonElement) {
-    dialogTrigger.current = trigger; setSelection({ id: user.id, action })
+    dialogTrigger.current = trigger
+    if (action === 'details') setSelection(user)
+    else setConfirmation({ user, action })
   }
   function restoreFocus() {
     if (dialogTrigger.current?.isConnected) dialogTrigger.current.focus()
@@ -107,7 +113,15 @@ export function UserManagementPage() {
           </>}
       </Card>
     </div>
-    <UserDialog open={!!detailId} user={detail?.id === detailId ? detail.user : null} action={selection?.action ?? 'details'}
-      error={detailFailure} onClose={closeDetails} onRetry={() => setDetailReload(value => value + 1)} restoreFocus={restoreFocus} />
+    <UserDialog key={detailId ?? 'closed'} open={!!detailId} userId={detailId} user={selectedUser}
+      onClose={closeDetails} restoreFocus={restoreFocus} onCopy={copyUserId}
+      onMembershipChanged={() => { setReload(value => value + 1); setNotice('会员调整成功，用户权益及操作日志已更新。') }} />
+    {confirmation && <UserActionConfirmation user={confirmation.user} action={confirmation.action}
+      restoreFocus={restoreFocus} onClose={() => setConfirmation(null)} onSuccess={() => {
+        setNotice(confirmation.action === 'disable' ? '账号已禁用。' : '账号已恢复。')
+        setConfirmation(null)
+        setReload(value => value + 1)
+      }} />}
+    <div className="user-action-notice" role="status" aria-live="polite" aria-atomic="true">{notice && <span>{notice}</span>}</div>
   </>
 }

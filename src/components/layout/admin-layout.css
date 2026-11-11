@@ -38,8 +38,6 @@
 }
 
 .admin-topbar-separator { width: 1px; height: 27px; background: #e0e4ee; }
-.notification { position: relative; display: grid; width: 32px; height: 38px; place-items: center; color: #56627d; }
-.notification i { position: absolute; top: 1px; right: 0; width: 10px; height: 10px; border: 1.5px solid #fff; border-radius: 50%; background: #ff541b; }
 
 .admin-content {
   display: grid;

@@ -90,3 +90,9 @@
 @media (max-width: 360px) {
   .audit-detail .detail-drawer-header, .audit-detail .detail-drawer-body { padding-inline: 13px; }
 }
+
+.audit-live-feedback { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; color: #7b88a0; font-size: 12px; }
+.audit-live-feedback button { gap: 6px; cursor: pointer; }
+.audit-live-feedback[role='alert'] { color: #b82131; }
+.audit-detail-request { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 12px; border: 1px solid #e2e8f4; border-radius: 8px; background: #f3f7ff; color: #63799a; font-size: 12px; }
+.audit-detail-request[role='alert'] { color: #b82131; background: #fff3f5; border-color: #f5dce1; }

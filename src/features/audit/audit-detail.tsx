@@ -1,6 +1,7 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { ArrowRight, CalendarDays, Check, Layers3, MapPin, Monitor, Target, UserRound, X } from 'lucide-react'
 import { DetailDrawerContent } from '@/components/ui/detail-drawer'
+import { Button } from '@/components/ui/button'
 import { auditCategories, type AuditChange, type AuditLog } from './audit-data'
 import { AuditStatusBadge } from './audit-table'
 
@@ -9,9 +10,12 @@ interface AuditDetailProps {
   docked: boolean
   onClose: () => void
   restoreFocus: () => void
+  loading: boolean
+  error: string
+  onRetry: () => void
 }
 
-export function AuditDetail({ log, docked, onClose, restoreFocus }: AuditDetailProps) {
+export function AuditDetail({ log, docked, onClose, restoreFocus, loading, error, onRetry }: AuditDetailProps) {
   const result = log.result
   const succeeded = result.status === 'success'
   const OutcomeIcon = succeeded ? Check : X
@@ -22,7 +26,7 @@ export function AuditDetail({ log, docked, onClose, restoreFocus }: AuditDetailP
     { label: '操作类型', value: auditCategories[log.category], icon: Layers3 },
     { label: '操作对象', value: log.target, icon: Target },
     { label: '操作来源', value: log.source, icon: Monitor },
-    { label: '操作 IP', value: log.ip, icon: MapPin },
+    { label: '操作 IP', value: log.ip ?? '—（未记录）', icon: MapPin },
   ]
 
   return (
@@ -31,6 +35,8 @@ export function AuditDetail({ log, docked, onClose, restoreFocus }: AuditDetailP
         {!docked && <Dialog.Overlay className="detail-overlay" />}
         <DetailDrawerContent className={docked ? 'audit-detail audit-detail-docked' : 'audit-detail'} title="操作详情" description="只读查看本次操作的基本信息、变更和执行结果。"
           restoreFocus={restoreFocus} onInteractOutside={(event) => { if (docked) event.preventDefault() }}>
+          {(loading || error) && <div className="audit-detail-request" role={error ? 'alert' : 'status'}>{error || '正在读取操作详情…'}
+            {error && <Button type="button" variant="ghost" size="sm" onClick={onRetry}>重试</Button>}</div>}
           <section aria-label="基础信息" className="audit-detail-basic">
             <div className="audit-detail-outcome">
               <span className="audit-outcome-icon" data-result={result.status}><OutcomeIcon size={24} strokeWidth={2.8} aria-hidden="true" /></span>
@@ -51,7 +57,7 @@ export function AuditDetail({ log, docked, onClose, restoreFocus }: AuditDetailP
                 <ArrowRight className="audit-change-arrow" size={19} aria-hidden="true" />
                 <ChangeColumn title="变更后" changes={changes} side="after" />
               </div>
-            ) : <p className="audit-detail-message">本次操作未产生数据变更。</p>}
+            ) : <p className="audit-detail-message">该记录未保存字段级变更明细。</p>}
           </section>
           <section className="audit-detail-section" aria-labelledby="audit-result-title">
             <h3 id="audit-result-title">操作结果</h3>

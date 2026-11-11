@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { PageHeader } from '@/components/layout/page-header'
 import { useAdminAuth } from '@/features/auth/admin-auth'
-import { monitorOverview, unknownChecks, type Incident, type MonitorSnapshot } from './monitor-data'
+import { coreChecks, overallStatus, recentIncidents, type Incident, type MonitorSnapshot } from './monitor-data'
 import { MonitorDetail } from './monitor-detail'
-import { MonitorAlerts, MonitorIncidents } from './monitor-incidents'
+import { MonitorIncidents } from './monitor-incidents'
 import { MonitorServices, MonitorStatus } from './monitor-services'
 import { MonitorHeaderActions } from './monitor-summary'
 import './monitor.css'
@@ -12,11 +12,12 @@ export function SystemMonitorPage() {
   const { request } = useAdminAuth()
   const [snapshot, setSnapshot] = useState<MonitorSnapshot | null>(null)
   const [refreshing, setRefreshing] = useState(true)
-  const [failure, setFailure] = useState('')
+  const [failed, setFailed] = useState(false)
   const [notice, setNotice] = useState('')
   const [attempt, setAttempt] = useState(0)
   const [selection, setSelection] = useState<Incident | null>(null)
   const detailTrigger = useRef<HTMLButtonElement>(null)
+  const manualRefresh = useRef(false)
 
   useEffect(() => {
     let disposed = false
@@ -33,17 +34,23 @@ export function SystemMonitorPage() {
       try {
         const result = await request<MonitorSnapshot>('/api/v1/admin/monitor', { signal: active.signal })
         if (disposed) return
+        if (!Number.isFinite(result?.checkedAt) || !Array.isArray(result.checks) || !Array.isArray(result.incidents))
+          throw new Error('Invalid monitoring snapshot')
         const latency = Math.round(performance.now() - started)
-        setSnapshot({ ...result, checks: result.checks.map(check =>
-          check.id === 'api' && check.metricLabel === '本次响应' ? { ...check, latencyMs: latency } : check) })
-        setFailure('')
-        setNotice('状态刷新完成')
+        const checks = coreChecks(result.checks).map(check =>
+          check.id === 'api' && check.status !== 'unknown' ? { ...check, latencyMs: latency } : check)
+        setSnapshot({ ...result, checks, incidents: recentIncidents(result) })
+        setFailed(false)
+        if (manualRefresh.current) setNotice('状态刷新完成')
       } catch {
-        if (!disposed) setFailure('监控数据获取失败，当前服务状态未知。已获取的异常记录保留至最近一次成功检查。')
+        if (!disposed) setFailed(true)
       } finally {
         window.clearTimeout(timeout)
         busy = false
-        if (!disposed) setRefreshing(false)
+        if (!disposed) {
+          manualRefresh.current = false
+          setRefreshing(false)
+        }
       }
     }
     void load()
@@ -61,10 +68,9 @@ export function SystemMonitorPage() {
     return () => window.clearTimeout(timeout)
   }, [notice])
 
-  const checks = failure || !snapshot ? unknownChecks() : snapshot.checks
-  const overview = snapshot ? monitorOverview(snapshot) : null
+  const checks = failed || !snapshot ? coreChecks() : snapshot.checks
+  const status = overallStatus(checks)
   const selected = selection && (snapshot?.incidents.find(incident => incident.id === selection.id) ?? selection)
-  const unknown = !!failure || !snapshot || checks.some(check => check.status === 'unknown')
 
   function openIncident(incident: Incident, trigger: HTMLButtonElement) {
     detailTrigger.current = trigger
@@ -72,19 +78,16 @@ export function SystemMonitorPage() {
   }
 
   return <>
-    <PageHeader title="系统监控" description="查看核心服务状态与异常情况，及时发现并处理影响用户使用的问题。"
-      actions={<MonitorHeaderActions checkedAt={snapshot?.checkedAt} refreshing={refreshing} onRefresh={() => setAttempt(value => value + 1)} />} />
+    <PageHeader title="系统监控" description="监控核心服务的运行状态，及时发现并处理异常。"
+      actions={<MonitorHeaderActions checkedAt={snapshot?.checkedAt} refreshing={refreshing} onRefresh={() => { manualRefresh.current = true; setAttempt(value => value + 1) }} />} />
     <div className="system-monitor monitor-layout">
-      <MonitorStatus checks={checks} loading={!snapshot && refreshing} failed={!!failure} />
-      {failure && <p role="alert" className="monitor-failure">{failure}</p>}
+      <MonitorStatus checks={checks} loading={!snapshot && refreshing} failed={failed} />
       <MonitorServices checks={checks} loading={!snapshot && refreshing} />
-      <MonitorIncidents incidents={overview?.recent ?? []} onDetails={openIncident}
-        message={failure ? '异常记录暂时无法获取' : !snapshot ? '正在获取异常记录…' : undefined}
-        historyStartedAt={snapshot?.historyStartedAt} />
-      <MonitorAlerts incidents={overview?.active ?? []} onDetails={openIncident} unknown={unknown} />
+      <MonitorIncidents incidents={snapshot?.incidents ?? []} onDetails={openIncident}
+        healthy={status === 'healthy'} loading={!snapshot && refreshing} stale={failed} />
     </div>
     <div role="status" className={notice ? 'monitor-notice' : 'sr-only'}>{notice}</div>
     {selected && <MonitorDetail incident={selected} checkedAt={snapshot?.checkedAt ?? selected.occurredAt}
-      stale={!!failure} onClose={() => setSelection(null)} restoreFocus={() => detailTrigger.current?.focus()} />}
+      stale={failed} onClose={() => setSelection(null)} restoreFocus={() => detailTrigger.current?.focus()} />}
   </>
 }

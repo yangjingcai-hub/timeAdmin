@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
-import { CircleAlert, X } from 'lucide-react'
+import { CircleAlert, RefreshCw, X } from 'lucide-react'
 import { PageHeader } from '@/components/layout/page-header'
 import { Button } from '@/components/ui/button'
 import { ListPagination } from '@/components/ui/list-controls'
 import { useAdminAuth } from '@/features/auth/admin-auth'
 import { ApiError } from '@/lib/api'
 import type { Order } from './order-types'
-import { ordersPath, toOrder, type AdminOrderResponse, type OrdersPage } from './order-api'
+import { ordersPath, toOrder, type AdminOrderResponse, type OrdersPage, type OrderStat } from './order-api'
 import { OrderDetail } from './order-detail'
 import { OrderFilters } from './order-filters'
 import { defaultOrderFilters, downloadOrders, type OrderFilters as FilterValues, type OrderRange } from './order-model'
@@ -15,60 +15,66 @@ import { OrderStats } from './order-stats'
 import { OrderTable } from './order-table'
 import './orders.css'
 
+const pageSize = 10
+
 export function OrderManagementPage() {
   const { request } = useAdminAuth()
   const [params, setParams] = useSearchParams()
   const [range, setRange] = useState<OrderRange>('all')
   const [filters, setFilters] = useState(defaultOrderFilters)
   const [requestedPage, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
-  const [detailId, setDetailId] = useState<string | null>(null)
-  const [detail, setDetail] = useState<Order | null>(null)
-  const [result, setResult] = useState<{ path: string; data: OrdersPage } | null>(null)
+  const [selected, setSelected] = useState<Order | null>(null)
+  const [detailResult, setDetailResult] = useState<{ id: string; data: Order } | null>(null)
+  const [detailFailure, setDetailFailure] = useState<{ id: string; message: string } | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailAttempt, setDetailAttempt] = useState(0)
+  const [result, setResult] = useState<{ path: string; range: OrderRange; userId: string; data: OrdersPage } | null>(null)
   const [failure, setFailure] = useState('')
-  const [detailFailure, setDetailFailure] = useState('')
+  const [loading, setLoading] = useState(false)
   const [reload, setReload] = useState(0)
   const [exporting, setExporting] = useState(false)
   const detailTrigger = useRef<HTMLButtonElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
+  const dataVersion = useRef(0)
   const userId = params.get('userId') ?? ''
   const path = ordersPath({ ...filters, userId }, range, requestedPage, pageSize)
   const data = result?.path === path ? result.data : undefined
   const orders = data?.items.map(toOrder) ?? []
-  const userEmail = orders.find(order => order.userId === userId)?.email
   const page = data?.page ?? requestedPage
   const pageCount = Math.ceil((data?.total ?? 0) / pageSize)
+  const detailId = params.get('orderId')
+  const detail = detailResult?.id === detailId ? detailResult.data : selected?.orderId === detailId ? selected : null
+  const detailError = detailFailure?.id === detailId ? detailFailure.message : ''
+  const stats = result?.range === range && result.userId === userId ? result.data.stats : undefined
+  const selectedStat = filters.exceptionOnly ? 'exceptions' : filters.status === 'all' ? 'total'
+    : filters.status === 'paid' || filters.status === 'refunded' ? filters.status : null
 
   useEffect(() => {
     const controller = new AbortController()
-    setFailure('')
-    request<OrdersPage>(path, { signal: controller.signal }).then(data => {
-      if (!controller.signal.aborted) setResult({ path, data })
+    const version = dataVersion.current
+    setFailure(''); setLoading(true)
+    request<OrdersPage>(path, { signal: controller.signal }).then(value => {
+      if (!controller.signal.aborted && version === dataVersion.current) setResult({ path, range, userId, data: value })
     }).catch(() => {
-      if (controller.signal.aborted) return
-      setResult(null)
-      setFailure('订单获取失败，请检查后端服务后重试。')
-    })
+      if (!controller.signal.aborted && version === dataVersion.current) setFailure('订单读取失败，请检查后台服务后重试。')
+    }).finally(() => { if (!controller.signal.aborted && version === dataVersion.current) setLoading(false) })
     return () => controller.abort()
-  }, [path, request, reload])
-
-  useEffect(() => {
-    const refresh = () => { if (!document.hidden) setReload(value => value + 1) }
-    const timer = window.setInterval(refresh, 15000)
-    window.addEventListener('focus', refresh)
-    return () => { window.clearInterval(timer); window.removeEventListener('focus', refresh) }
-  }, [])
+  }, [path, range, userId, request, reload])
 
   useEffect(() => {
     if (!detailId) return
     const controller = new AbortController()
-    setDetail(null)
-    setDetailFailure('')
-    request<AdminOrderResponse>(`/api/v1/admin/orders/${detailId}`, { signal: controller.signal }).then(value => {
-      if (!controller.signal.aborted) setDetail(toOrder(value))
-    }).catch(() => { if (!controller.signal.aborted) setDetailFailure('订单详情读取失败，请关闭后重试。') })
+    const version = dataVersion.current
+    setDetailLoading(true); setDetailFailure(null)
+    request<AdminOrderResponse>(`/api/v1/admin/orders/${encodeURIComponent(detailId)}`, { signal: controller.signal }).then(value => {
+      if (value.order.id.toLowerCase() !== detailId.toLowerCase()) throw new Error('Unexpected order identity')
+      if (!controller.signal.aborted && version === dataVersion.current) setDetailResult({ id: detailId, data: toOrder(value) })
+    }).catch((error: unknown) => {
+      if (!controller.signal.aborted && version === dataVersion.current) setDetailFailure({ id: detailId,
+        message: error instanceof ApiError && error.status === 404 ? '订单不存在或已被移除。' : '订单详情读取失败，请重试。' })
+    }).finally(() => { if (!controller.signal.aborted && version === dataVersion.current) setDetailLoading(false) })
     return () => controller.abort()
-  }, [detailId, request])
+  }, [detailId, request, detailAttempt, reload])
 
   function clearUserFilter() {
     const next = new URLSearchParams(params); next.delete('userId'); setParams(next, { replace: true }); setPage(1)
@@ -76,19 +82,29 @@ export function OrderManagementPage() {
   function changeRange(next: OrderRange) { setRange(next); setPage(1) }
   function changeFilters(next: FilterValues) { setFilters(next); setPage(1) }
   function clearFilters() { changeFilters(defaultOrderFilters); changeRange('all'); clearUserFilter() }
-  function showExceptions() { clearUserFilter(); changeFilters({ ...defaultOrderFilters, status: 'paid', exceptionOnly: true }) }
-  function openDetail(order: Order, trigger: HTMLButtonElement) { detailTrigger.current = trigger; setDetailId(order.orderId) }
-  async function handleException(order: Order) {
-    let value: AdminOrderResponse
-    try { value = await request<AdminOrderResponse>(`/api/v1/admin/orders/${order.orderId}/retry-activation`, {
-      method: 'POST', headers: { 'X-FocusTime-Admin': '1' },
-    }) } catch { throw new Error('后端重试未完成，请检查服务后再试。') }
-    setDetail(toOrder(value)); setReload(current => current + 1)
-    if (value.order.activationStatus !== 'activated') throw new Error('会员开通仍失败，异常及处理日志已保留，请检查后端服务。')
+  function selectStat(key: OrderStat['key']) {
+    if (key === 'total') { clearFilters(); return }
+    changeFilters({ ...filters, status: key === 'refunded' ? 'refunded' : 'paid', exceptionOnly: key === 'exceptions' })
+  }
+  function openDetail(order: Order, trigger: HTMLButtonElement) {
+    detailTrigger.current = trigger
+    setDetailResult(null); setDetailFailure(null); setDetailLoading(true); setSelected(order)
+    const next = new URLSearchParams(params); next.set('orderId', order.orderId); setParams(next, { replace: true })
+  }
+  function closeDetail() {
+    setSelected(null); setDetailResult(null); setDetailFailure(null)
+    const next = new URLSearchParams(params); next.delete('orderId'); setParams(next, { replace: true })
+  }
+  function applyRefund(value: AdminOrderResponse) {
+    dataVersion.current += 1
+    const updated = toOrder(value)
+    setDetailResult({ id: updated.orderId, data: updated }); setSelected(updated); setDetailFailure(null); setDetailLoading(false)
+    setResult(current => current ? { ...current, data: { ...current.data, items: current.data.items.map(item => item.order.id === value.order.id ? value : item) } } : current)
+    setReload(current => current + 1)
   }
   async function exportOrders() {
     if (exporting) return
-    setExporting(true); setFailure('')
+    setExporting(true)
     try {
       const values = await request<AdminOrderResponse[]>(ordersPath({ ...filters, userId }, range, 1, 100, true))
       downloadOrders(values.map(toOrder))
@@ -97,34 +113,37 @@ export function OrderManagementPage() {
         ? '一次最多导出 10000 条订单，请缩小筛选范围。' : '订单导出失败，请稍后重试。')
     } finally { setExporting(false) }
   }
+
   return <>
-    <PageHeader title="订单管理" description="查看和管理用户订单，跟踪支付状态、会员开通情况及异常订单。" />
+    <PageHeader className="order-page-heading" title="订单管理" description="查看和管理用户订单，跟踪订单状态、会员权益及异常订单。"
+      actions={<Button type="button" variant="ghost" size="sm" className="order-refresh-button" disabled={loading} onClick={() => setReload(value => value + 1)}>
+        <RefreshCw size={15} className={loading ? 'order-refresh-spinning' : undefined} aria-hidden="true" />{loading ? '刷新中…' : '刷新订单'}
+      </Button>} />
     <div className="order-management">
-      <OrderStats stats={data?.stats} range={range} exceptionsSelected={filters.exceptionOnly} onExceptions={showExceptions} />
-      <section className="order-list" aria-label="会员购买订单" aria-busy={!data && !failure}>
+      <OrderStats stats={stats} selected={selectedStat} onSelect={selectStat} />
+      <section className="order-list" aria-label="会员购买订单" aria-busy={loading}>
         <OrderFilters values={filters} onChange={changeFilters} range={range} onRange={changeRange} searchRef={searchRef}
           canExport={!!data?.total && !exporting} onExport={() => void exportOrders()} />
-        <div className="order-live-feedback" role={failure ? 'alert' : 'status'}>
-          <span>{failure || (exporting ? '正在导出订单…' : !data ? '正在读取订单…' : '每 15 秒自动刷新')}</span>
-          <Button type="button" variant="ghost" size="sm" onClick={() => setReload(value => value + 1)}>刷新订单</Button>
-        </div>
+        {(failure || exporting || (loading && !data)) && <p className="order-live-feedback" role={failure ? 'alert' : 'status'}>
+          {failure || (exporting ? '正在导出订单…' : '正在读取订单…')}
+        </p>}
         {filters.exceptionOnly && <div className="order-exception-filter" role="status">
-          <CircleAlert size={17} aria-hidden="true" /><strong>异常订单</strong><span>当前正在查看支付成功但会员未开通的待处理订单</span>
+          <CircleAlert size={17} aria-hidden="true" /><strong>待处理异常</strong><span>支付成功但权益尚未发放的订单</span>
           <Button type="button" variant="ghost" size="sm" aria-label="清除异常订单筛选"
             onClick={() => changeFilters({ ...filters, exceptionOnly: false, status: 'all' })}><X size={15} aria-hidden="true" />清除</Button>
         </div>}
-        {userId && <div className="order-user-filter" role="status">当前用户订单 · {userEmail ?? userId}
+        {userId && <div className="order-user-filter" role="status">当前用户订单 · {orders.find(order => order.userId === userId)?.email ?? userId}
           <Button type="button" variant="ghost" size="sm" onClick={clearUserFilter}>查看全部订单</Button>
         </div>}
-        {data && <OrderTable orders={orders} onDetails={openDetail} onClearFilters={clearFilters} exceptionOnly={filters.exceptionOnly} />}
-        <ListPagination total={data?.total ?? 0} page={page} pageCount={pageCount} pageSize={pageSize} countLabel="条订单" navigationLabel="订单列表分页"
-          onPageChange={setPage} onPageSizeChange={size => { setPageSize(size); setPage(1) }} />
-        {detailId && !detail && <div className="order-live-feedback" role={detailFailure ? 'alert' : 'status'}>
-          {detailFailure || '正在读取订单详情…'}<Button variant="ghost" onClick={() => setDetailId(null)}>关闭</Button>
+        {data && <div className="order-list-frame">
+          <OrderTable orders={orders} onDetails={openDetail} onClearFilters={clearFilters} exceptionOnly={filters.exceptionOnly} />
+          <ListPagination total={data.total} page={page} pageCount={pageCount} countLabel="条订单" navigationLabel="订单列表分页" onPageChange={setPage} />
         </div>}
       </section>
     </div>
-    <OrderDetail key={detailId ?? 'closed'} order={detail} onClose={() => { setDetailId(null); setDetail(null) }} onHandle={handleException}
-      restoreFocus={() => { if (detailTrigger.current?.isConnected) detailTrigger.current.focus(); else searchRef.current?.focus() }} />
+    {detailId && <OrderDetail key={detailId} order={detail} loading={detailLoading || (!detail && !detailError)} error={detailError}
+      onRefunded={applyRefund}
+      onRetry={() => setDetailAttempt(value => value + 1)} onRefresh={() => setReload(value => value + 1)} onClose={closeDetail}
+      restoreFocus={() => { if (detailTrigger.current?.isConnected) detailTrigger.current.focus(); else searchRef.current?.focus() }} />}
   </>
 }

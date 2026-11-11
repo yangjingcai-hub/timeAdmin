@@ -4,11 +4,11 @@ export const orderRanges: Record<OrderRange, { label: string }> = {
   all: { label: '全部时间' }, week: { label: '最近 7 天' }, month: { label: '最近 30 天' }, quarter: { label: '最近 90 天' },
 }
 export interface OrderFilters {
-  query: string; status: 'all' | PaymentStatus; plan: 'all' | Plan; method: 'all' | PaymentMethod
+  query: string; status: 'all' | Exclude<PaymentStatus, 'refunding'>; plan: 'all' | Plan; method: 'all' | PaymentMethod
   exceptionOnly: boolean; userId: string
 }
 export const defaultOrderFilters: OrderFilters = { query: '', status: 'all', plan: 'all', method: 'all', exceptionOnly: false, userId: '' }
-export const isOrderException = (order: Order) => order.payment.status === 'paid' && order.activation !== 'activated'
+export const isOrderException = (order: Order) => order.payment.status === 'paid' && (order.activation === 'failed' || order.activation === 'processing')
 const formatCurrency = new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format
 export const formatOrderCount = new Intl.NumberFormat('zh-CN').format
 export const formatOrderShare = new Intl.NumberFormat('zh-CN', { style: 'percent', maximumFractionDigits: 1 }).format
@@ -23,7 +23,7 @@ export function formatOrderLogTime(value: string) {
     hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date(value))
 }
 export function downloadOrders(orders: Order[]) {
-  const headers = ['订单编号', '用户邮箱', '会员套餐', '订单金额（元）', '支付方式', '支付状态', '会员开通状态', '创建时间', '支付完成时间', '会员开通时间', '异常原因']
+  const headers = ['订单编号', '用户邮箱', '会员套餐', '订单金额（元）', '支付方式', '订单状态', '权益状态', '创建时间', '支付完成时间', '权益发放时间', '异常原因']
   const rows = orders.map(order => [order.id, order.email, plans[order.plan].label, (order.amountCents / 100).toFixed(2),
     paymentMethods[order.payment.method], paymentStatuses[order.payment.status], activationStatuses[order.activation],
     order.createdAt, order.payment.completedAt ?? '', order.activatedAt ?? '', order.exception?.reason ?? ''])
