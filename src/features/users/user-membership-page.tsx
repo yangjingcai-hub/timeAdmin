@@ -3,7 +3,8 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { OrdersPage } from '@/features/orders/order-api'
-import { paymentStatuses, plans } from '@/features/orders/order-types'
+import { paymentStatuses } from '@/features/orders/order-types'
+import { membershipPlanLabel } from './user-display'
 import { UserDetailPagination, UserDetailRequestState, UserDetailStatus, UserSubpageCard, UserSubpageHeading } from './user-detail-components'
 import { detailPath, formatDetailTime, toUserDetailOrder, useUserDetailRequest, type UserCurrentMembership, type UserDetailOrder, type UserMembershipData } from './user-detail-api'
 import type { User } from './user-types'
@@ -38,8 +39,9 @@ function MembershipSummary({ membership }: { membership: UserCurrentMembership |
     <h4>当前未开通会员</h4><p>该用户暂无有效的会员资格</p>
   </div>
   return <dl className="user-membership-summary">
-    <div><dt>会员套餐</dt><dd>{plans[membership.plan as keyof typeof plans]?.label ?? membership.plan}</dd></div>
-    <div><dt>获得方式</dt><dd>{membership.source === 'order' ? '订单购买' : membership.source === 'manual' ? '人工授权' : '—'}</dd></div>
+    <div><dt>会员套餐</dt><dd>{membershipPlanLabel(membership.isTrial ? 'trial' : membership.plan)}</dd></div>
+    <div><dt>获得方式</dt><dd>{membership.source === 'registration-trial' ? '注册赠送'
+      : membership.source === 'order' ? '订单购买' : membership.source === 'manual' ? '人工授权' : '—'}</dd></div>
     <div><dt>开通时间</dt><dd>{formatDetailTime(membership.startsAtUtc)}</dd></div>
     <div><dt>到期时间</dt><dd>{membership.plan === 'lifetime' && !membership.expiresAtUtc ? '永久有效' : formatDetailTime(membership.expiresAtUtc)}</dd></div>
     <div className="user-membership-order"><dt>关联订单</dt><dd>{membership.orderNumber

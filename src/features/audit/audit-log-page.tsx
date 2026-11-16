@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
+import { useSearchParams } from 'react-router'
 import { PageHeader } from '@/components/layout/page-header'
 import { Button } from '@/components/ui/button'
 import { ListPagination } from '@/components/ui/list-controls'
@@ -11,16 +12,10 @@ import { AuditFilters } from './audit-filters'
 import { AuditTable } from './audit-table'
 import './audit.css'
 
-const dockQuery = '(min-width: 1360px)'
-function subscribeToWidth(listener: () => void) {
-  const query = window.matchMedia(dockQuery)
-  query.addEventListener('change', listener)
-  return () => query.removeEventListener('change', listener)
-}
-function isDocked() { return window.matchMedia(dockQuery).matches }
-
 export function AuditLogPage() {
   const { request } = useAdminAuth()
+  const [params, setParams] = useSearchParams()
+  const linkedId = params.get('logId')
   const [filters, setFilters] = useState(defaultAuditFilters)
   const [period, setPeriod] = useState<AuditPeriod>('week')
   const [dates, setDates] = useState(() => presetAuditRange('week'))
@@ -37,13 +32,13 @@ export function AuditLogPage() {
   const [detailAttempt, setDetailAttempt] = useState(0)
   const detailTrigger = useRef<HTMLButtonElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
-  const docked = useSyncExternalStore(subscribeToWidth, isDocked, () => false)
   const path = auditPath(filters, dates, requestedPage, pageSize)
   const data = result?.path === path ? result.data : undefined
   const logs = data?.items.map(toAuditLog) ?? []
   const page = data?.page ?? requestedPage
   const pageCount = Math.ceil((data?.total ?? 0) / pageSize)
-  const selectedId = selected?.id
+  const selectedId = selected?.id ?? linkedId
+  const selectedLog = detail?.id === selectedId ? detail : selected
 
   useEffect(() => {
     const controller = new AbortController()
@@ -56,6 +51,7 @@ export function AuditLogPage() {
   }, [path, request, reload])
 
   useEffect(() => {
+    if (selectedId) return
     const refresh = () => {
       if (document.hidden) return
       if (period !== 'custom') setDates(presetAuditRange(period))
@@ -64,7 +60,7 @@ export function AuditLogPage() {
     const timer = window.setInterval(refresh, 15000)
     window.addEventListener('focus', refresh)
     return () => { window.clearInterval(timer); window.removeEventListener('focus', refresh) }
-  }, [period])
+  }, [period, selectedId])
 
   useEffect(() => {
     if (!selectedId) return
@@ -84,19 +80,35 @@ export function AuditLogPage() {
   function openDetail(log: AuditLog, trigger: HTMLButtonElement) {
     detailTrigger.current = trigger; setDetail(null); setDetailLoading(true); setDetailFailure(''); setSelected(log)
   }
-  function restoreFocus() { if (detailTrigger.current?.isConnected) detailTrigger.current.focus(); else searchRef.current?.focus() }
+  function restoreFocus() {
+    const trigger = detailTrigger.current
+    if (trigger?.isConnected) trigger.focus({ preventScroll: true })
+    else searchRef.current?.focus({ preventScroll: true })
+  }
+  function closeDetail() {
+    setSelected(null)
+    if (!linkedId) return
+    const next = new URLSearchParams(params)
+    next.delete('logId')
+    setParams(next, { replace: true })
+  }
   return <>
     <PageHeader title="操作日志" description="记录管理后台的重要操作，便于追溯操作来源、变更内容和执行结果。" />
-    <section className="audit-list" aria-label="后台操作记录" aria-busy={loading} data-docked={docked} data-detail-open={selected !== null}>
+    <section className="audit-list" aria-label="后台操作记录" aria-busy={loading}>
+      {linkedId && !selectedLog && <div className="audit-live-feedback" role={detailFailure ? 'alert' : 'status'}>
+        <span>{detailFailure || '正在读取操作详情…'}</span>
+        {detailFailure && <Button variant="ghost" onClick={() => setDetailAttempt(value => value + 1)}>重试</Button>}
+        <Button variant="ghost" onClick={closeDetail}>关闭</Button>
+      </div>}
       <AuditFilters values={filters} onChange={changeFilters} searchRef={searchRef} period={period} onPeriodChange={changePeriod} dates={dates} onDatesChange={changeDates} />
       <div className="audit-live-feedback" role={failure ? 'alert' : 'status'}><span>{failure || (loading && !data ? '正在读取操作日志…' : '每 15 秒自动刷新，展示已保存的真实管理操作')}</span>
         <Button type="button" variant="ghost" size="sm" disabled={loading} onClick={() => setReload(value => value + 1)}><RefreshCw size={14} aria-hidden="true" />{loading ? '刷新中…' : '刷新日志'}</Button></div>
-      {data && <AuditTable logs={logs} selectedId={selected?.id} onDetails={openDetail} onClear={() => { changeFilters(defaultAuditFilters); changePeriod('week') }} />}
+      {data && <AuditTable logs={logs} selectedId={selectedId ?? undefined} onDetails={openDetail} onClear={() => { changeFilters(defaultAuditFilters); changePeriod('week') }} />}
       <ListPagination total={data?.total ?? 0} page={page} pageCount={pageCount} pageSize={pageSize} countLabel="条记录" navigationLabel="操作日志分页"
         onPageChange={setPage} onPageSizeChange={size => { setPageSize(size); setPage(1) }} />
     </section>
-    {selected && <AuditDetail key={selected.id} log={detail?.id === selected.id ? detail : selected} docked={docked}
+    {selectedLog && <AuditDetail key={selectedLog.id} log={selectedLog}
       loading={detailLoading} error={detailFailure} onRetry={() => setDetailAttempt(value => value + 1)}
-      onClose={() => setSelected(null)} restoreFocus={restoreFocus} />}
+      onClose={closeDetail} restoreFocus={restoreFocus} />}
   </>
 }

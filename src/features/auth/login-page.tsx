@@ -1,4 +1,4 @@
-import { Clock, Eye, EyeOff, LockKeyhole, ShieldCheck, UserRound } from 'lucide-react'
+import { Clock, Eye, EyeOff, LockKeyhole, UserRound } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router'
 import { Button } from '@/components/ui/button'
@@ -90,11 +90,6 @@ export function LoginPage() {
               {checking ? '正在验证…' : busy ? '正在登录…' : '登录'}
             </Button>
           </form>
-          <div className="login-divider" />
-          <div className="login-security">
-            <ShieldCheck aria-hidden="true" />
-            <div><strong>安全提示</strong><p>仅限授权的管理员使用，请妥善保管账号和密码。</p></div>
-          </div>
         </section>
       </div>
     </main>

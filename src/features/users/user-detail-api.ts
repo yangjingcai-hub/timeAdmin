@@ -14,6 +14,7 @@ export interface UserAccountData {
 }
 export interface UserCurrentMembership {
   grantId: string; plan: string; startsAtUtc: string; expiresAtUtc: string | null
+  isTrial?: boolean
   source: string | null; orderId: string | null; orderNumber: string | null
 }
 export interface UserMembershipData { userId: string; current: UserCurrentMembership | null }

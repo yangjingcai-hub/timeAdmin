@@ -1,5 +1,5 @@
 import * as Menu from '@radix-ui/react-dropdown-menu'
-import { Bell, ChevronRight } from 'lucide-react'
+import { Bell, BellRing, ChevronRight } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { notificationCount, notificationTarget, type AdminNotification } from './notification-data'
@@ -37,15 +37,15 @@ export function NotificationPoptip() {
       <Menu.Content className="notice-poptip" sideOffset={12} collisionPadding={12} aria-label="通知"
         onCloseAutoFocus={event => { if (navigating.current) { event.preventDefault(); navigating.current = false } }}>
         <div className="notice-pop-heading"><Menu.Label>通知</Menu.Label>
-          {!!summary?.total && <span className="notice-unread-count" data-zero={unread === 0}>{notificationCount(unread)} 条未读</span>}
+          {unread > 0 && <span className="notice-unread-count">{notificationCount(unread)} 条未读</span>}
         </div>
-        <Menu.Group className="notice-pop-list" aria-label="最新通知">
+        <Menu.Group className="notice-pop-list" aria-label="最新未读通知">
           {summary?.items.length ? summary.items.map(item =>
-            <Menu.Item key={item.id} className="notice-row notice-row-compact" data-unread={!item.readAtUtc}
+            <Menu.Item key={item.id} className="notice-row notice-row-compact" data-unread="true"
               aria-busy={pending} onSelect={event => { event.preventDefault(); if (!pending) void openNotification(item) }}>
               <NotificationRow item={item} compact />
             </Menu.Item>
-          ) : <div className="notice-empty" role="status"><Bell size={28} aria-hidden="true" />
+          ) : <div className="notice-empty" role="status"><BellRing size={32} strokeWidth={1.65} aria-hidden="true" />
             <strong>{unavailable ? '通知暂时无法读取' : summary ? '暂无通知' : '正在读取通知…'}</strong>
           </div>}
         </Menu.Group>

@@ -5,6 +5,7 @@ import { defineConfig, loadEnv } from 'vite'
 
 export default defineConfig(({ mode }) => ({
   server: {
+    watch: { ignored: [/(?:^|[\\/])\.(?!env(?:\.|$))[^\\/]+\.local(?:[\\/]|$)/] },
     proxy: {
       '/api/v1/admin/': {
         target: loadEnv(mode, process.cwd(), 'FOCUSTIME_').FOCUSTIME_API_TARGET || 'http://127.0.0.1:5080',

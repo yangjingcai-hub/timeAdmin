@@ -4,6 +4,7 @@ import type { AccountStatus, Membership, User, UserStatsData } from './user-type
 export interface AdminUserResponse {
   id: string; email: string; status: AccountStatus; registeredAtUtc: string; lastLoginAtUtc: string | null
   membershipPlan: 'monthly' | 'annual' | 'lifetime' | null
+  membershipIsTrial?: boolean
   membershipStartsAtUtc: string | null; membershipExpiresAtUtc: string | null; lockedUntilUtc: string | null
 }
 export interface UsersPage {
@@ -12,7 +13,7 @@ export interface UsersPage {
 }
 const dateTime = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
 export function toUser(data: AdminUserResponse): User {
-  const plan = data.membershipPlan
+  const plan = data.membershipIsTrial ? 'trial' : data.membershipPlan
   const membership: Membership | null = plan === 'lifetime' ? { plan } : plan && data.membershipExpiresAtUtc
     ? { plan, expiresOn: dateTime.format(new Date(data.membershipExpiresAtUtc)) } : null
   return { id: data.id, email: data.email, status: data.status, membership,

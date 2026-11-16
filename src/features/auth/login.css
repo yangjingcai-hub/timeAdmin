@@ -48,7 +48,7 @@
 
 .login-card {
   grid-area: 2 / 2;
-  padding: clamp(28px, 3vw, 50px) clamp(24px, 3.18vw, 54px) clamp(25px, 2.75vw, 46px);
+  padding: clamp(28px, 3vw, 50px) clamp(24px, 3.18vw, 54px);
   border: 1px solid #ecebf4;
   border-radius: clamp(20px, 1.8vw, 31px);
   background: rgb(255 255 255 / 78%);
@@ -77,6 +77,7 @@
   padding: 0 clamp(12px, 1.5vw, 25px);
   border: 1.5px solid #e1e4ef;
   border-radius: clamp(12px, 1vw, 17px);
+  background: #fff;
   color: #738099;
 }
 .login-field:focus-within { border-color: var(--login-accent); box-shadow: 0 0 0 2px #fd7e051e; }
@@ -86,8 +87,13 @@
   min-width: 0;
   min-height: 44px;
   outline: none;
+  background: #fff;
   color: #11192e;
   font-size: clamp(16px, 1.25vw, 21px);
+}
+.login-field input:autofill {
+  box-shadow: 0 0 0 100px #fff inset;
+  -webkit-text-fill-color: #11192e;
 }
 .login-field input::placeholder { color: #77839b; }
 .login-show-password {
@@ -114,18 +120,6 @@
 .login-submit:hover { filter: brightness(.96); }
 .login-error { margin: -5px 0; color: #a72d36; font-size: 14px; }
 .login-success { margin: -5px 0; color: #19763d; font-size: 14px; }
-.login-divider { margin: clamp(18px, 1.7vw, 28px) 0; border-top: 1px solid #eeeef5; }
-.login-security {
-  display: flex;
-  align-items: flex-start;
-  gap: clamp(10px, 1vw, 16px);
-  padding: clamp(12px, 1vw, 17px) clamp(14px, 1.45vw, 24px);
-  border-radius: 15px;
-  background: #f2f2f8;
-}
-.login-security svg { flex: none; width: clamp(20px, 1.55vw, 26px); height: auto; }
-.login-security strong { font-size: clamp(15px, 1.15vw, 20px); }
-.login-security p { margin-top: 2px; font-size: clamp(13px, 1.09vw, 18px); color: #4c5870; }
 .admin-session-status { min-height: 100dvh; display: grid; place-content: center; justify-items: center; gap: 16px; padding: 20px; text-align: center; }
 
 @media (min-width: 821px) and (max-aspect-ratio: 3/2) {

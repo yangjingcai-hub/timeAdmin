@@ -30,16 +30,12 @@ export function SystemMonitorPage() {
       const timeout = window.setTimeout(() => active?.abort(), 12000)
       setRefreshing(true)
       setNotice('')
-      const started = performance.now()
       try {
         const result = await request<MonitorSnapshot>('/api/v1/admin/monitor', { signal: active.signal })
         if (disposed) return
         if (!Number.isFinite(result?.checkedAt) || !Array.isArray(result.checks) || !Array.isArray(result.incidents))
           throw new Error('Invalid monitoring snapshot')
-        const latency = Math.round(performance.now() - started)
-        const checks = coreChecks(result.checks).map(check =>
-          check.id === 'api' && check.status !== 'unknown' ? { ...check, latencyMs: latency } : check)
-        setSnapshot({ ...result, checks, incidents: recentIncidents(result) })
+        setSnapshot({ ...result, checks: coreChecks(result.checks), incidents: recentIncidents(result) })
         setFailed(false)
         if (manualRefresh.current) setNotice('状态刷新完成')
       } catch {

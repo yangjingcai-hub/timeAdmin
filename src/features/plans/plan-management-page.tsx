@@ -9,7 +9,7 @@ import { formatPlanDuration, formatPlanPrice, formatPlanUpdatedAt, planDetails, 
 import { useAdminAuth } from '@/features/auth/admin-auth'
 import { ApiError } from '@/lib/api'
 import { PlanEditor } from './plan-editor'
-import { readTrialRule, storeTrialRule, trialClaimLimit, type TrialRule } from './trial-rule'
+import { trialClaimLimit, trialRulePath, type TrialRule } from './trial-rule'
 import { TrialRuleEditor } from './trial-rule-editor'
 import './plans.css'
 
@@ -20,7 +20,8 @@ export function PlanManagementPage() {
   const [plans, setPlans] = useState<PlanConfig[] | null>(null)
   const [failure, setFailure] = useState('')
   const [reload, setReload] = useState(0)
-  const [trialRule, setTrialRule] = useState(readTrialRule)
+  const [trialRule, setTrialRule] = useState<TrialRule | null>(null)
+  const [trialFailure, setTrialFailure] = useState(false)
   const [editingTrial, setEditingTrial] = useState(false)
   const [editing, setEditing] = useState<PlanConfig | null>(null)
   const [notice, setNotice] = useState('')
@@ -37,6 +38,20 @@ export function PlanManagementPage() {
   }, [request, reload])
 
   useEffect(() => {
+    if (editingTrial) return
+    const controller = new AbortController()
+    request<TrialRule>(trialRulePath, { signal: controller.signal }).then(rule => {
+      if (controller.signal.aborted) return
+      setTrialRule(rule)
+      setTrialFailure(false)
+    }).catch(() => {
+      if (controller.signal.aborted) return
+      setTrialFailure(true)
+    })
+    return () => controller.abort()
+  }, [request, editingTrial])
+
+  useEffect(() => {
     if (!notice) return
     const timer = window.setTimeout(() => setNotice(''), 4000)
     return () => window.clearTimeout(timer)
@@ -46,7 +61,7 @@ export function PlanManagementPage() {
     let saved: PlanResponse
     try { saved = await request<PlanResponse>(`/api/v1/admin/membership-plans/${plan.id}`, {
       method: 'PUT', headers: { 'X-FocusTime-Admin': '1' }, body: JSON.stringify({ amountFen: plan.priceCents,
-        durationDays: plan.durationDays, available: plan.available, recommended: plan.recommended, expectedVersion: plan.version }),
+        durationDays: plan.id === 'monthly' ? undefined : plan.durationDays, expectedVersion: plan.version }),
     }) } catch (error) {
       throw new Error(error instanceof ApiError && error.code === 'plan_version_conflict'
         ? '套餐已被其他管理员更新，请关闭弹窗并刷新列表后重试。' : '套餐保存失败，请检查连接后重试。')
@@ -58,14 +73,14 @@ export function PlanManagementPage() {
 
   function saveTrialRule(rule: TrialRule) {
     setTrialRule(rule)
-    storeTrialRule(rule)
+    setTrialFailure(false)
     setEditingTrial(false)
     setNotice('体验规则已保存')
   }
 
   return (
     <>
-      <PageHeader title="套餐管理" description="管理会员套餐的价格、有效期及销售状态。" />
+      <PageHeader title="套餐管理" description="管理会员套餐和免费体验规则。" />
       <div className="plans-page">
         <Card className="plan-section" aria-labelledby="paid-plans-title">
           <header className="plan-section-header"><h2 id="paid-plans-title">付费套餐</h2>
@@ -116,7 +131,7 @@ export function PlanManagementPage() {
           </header>
           <dl className="trial-rule-summary">
             <div><span className="trial-rule-icon trial-rule-duration"><Clock3 size={27} aria-hidden="true" /></span>
-              <div><dt>体验时长</dt><dd>{trialRule.durationDays} 天</dd></div>
+              <div><dt>体验时长</dt><dd>{trialFailure ? '加载失败' : trialRule ? `${trialRule.durationDays} 天` : '正在读取…'}</dd></div>
             </div>
             <div><span className="trial-rule-icon trial-rule-limit"><UserRound size={27} aria-hidden="true" /></span>
               <div><dt>领取限制</dt><dd>{trialClaimLimit}</dd></div>
@@ -129,7 +144,7 @@ export function PlanManagementPage() {
         {notice && <><CheckCircle2 size={18} aria-hidden="true" />{notice}</>}
       </div>
       {editing && <PlanEditor key={editing.id} plan={editing} onClose={() => setEditing(null)} onConfirm={savePlan} restoreFocus={() => editTrigger.current?.focus()} />}
-      {editingTrial && <TrialRuleEditor rule={trialRule} onClose={() => setEditingTrial(false)} onConfirm={saveTrialRule} restoreFocus={() => trialTrigger.current?.focus()} />}
+      {editingTrial && <TrialRuleEditor onClose={() => setEditingTrial(false)} onSaved={saveTrialRule} restoreFocus={() => trialTrigger.current?.focus()} />}
     </>
   )
 }

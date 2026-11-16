@@ -1,9 +1,9 @@
 import * as Dialog from '@radix-ui/react-dialog'
-import { ArrowRight, X } from 'lucide-react'
+import { ArrowRight, Info, X } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import '@/components/ui/detail-drawer.css'
-import { createPlanDraft, getPlanChanges, planDetails, saleStatus, validatePlanDraft, type PlanChange, type PlanConfig, type PlanDraft, type PlanErrors } from './plan-config'
+import { createPlanDraft, formatPlanDuration, getPlanChanges, planDetails, validatePlanDraft, type PlanChange, type PlanConfig, type PlanDraft, type PlanErrors } from './plan-config'
 
 interface PlanEditorProps {
   plan: PlanConfig
@@ -23,6 +23,7 @@ export function PlanEditor({ plan, onClose, onConfirm, restoreFocus }: PlanEdito
   const durationInput = useRef<HTMLInputElement>(null)
   const backButton = useRef<HTMLButtonElement>(null)
   const name = planDetails[plan.id].name
+  const monthly = plan.id === 'monthly'
 
   useEffect(() => {
     if (proposal) backButton.current?.focus()
@@ -31,12 +32,14 @@ export function PlanEditor({ plan, onClose, onConfirm, restoreFocus }: PlanEdito
 
   function updateDraft<K extends keyof PlanDraft>(field: K, value: PlanDraft[K]) {
     setDraft((current) => ({ ...current, [field]: value }))
-    if (field === 'price' || field === 'duration') setErrors((current) => ({ ...current, [field]: undefined }))
+    setErrors((current) => ({ ...current, [field]: undefined }))
     setUnchanged(false)
+    setFailure('')
   }
 
   function reviewChanges(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (saving) return
     const result = validatePlanDraft(plan, draft)
     if ('errors' in result) {
       setErrors(result.errors)
@@ -50,13 +53,14 @@ export function PlanEditor({ plan, onClose, onConfirm, restoreFocus }: PlanEdito
       setUnchanged(true)
       return
     }
-    setProposal({ plan: result.value, changes })
+    if (monthly) void save(result.value)
+    else setProposal({ plan: result.value, changes })
   }
 
-  async function save() {
-    if (!proposal || saving) return
+  async function save(updated: PlanConfig) {
+    if (saving) return
     setSaving(true); setFailure('')
-    try { await onConfirm(proposal.plan) }
+    try { await onConfirm(updated) }
     catch (error) { setFailure(error instanceof Error ? error.message : '保存失败，请稍后重试。') }
     finally { setSaving(false) }
   }
@@ -65,7 +69,7 @@ export function PlanEditor({ plan, onClose, onConfirm, restoreFocus }: PlanEdito
     <Dialog.Root open onOpenChange={(open) => { if (!open && !saving) onClose() }}>
       <Dialog.Portal>
         <Dialog.Overlay className="detail-overlay" />
-        <Dialog.Content className="detail-surface plan-modal" role={proposal ? 'alertdialog' : 'dialog'}
+        <Dialog.Content className="detail-surface plan-modal" role={proposal ? 'alertdialog' : 'dialog'} aria-busy={saving}
           onOpenAutoFocus={(event) => { event.preventDefault(); priceInput.current?.focus() }}
           onCloseAutoFocus={(event) => { event.preventDefault(); restoreFocus() }}
           onPointerDownOutside={(event) => event.preventDefault()}
@@ -77,10 +81,11 @@ export function PlanEditor({ plan, onClose, onConfirm, restoreFocus }: PlanEdito
           }}>
           <header className="plan-modal-header">
             <div>
-              <Dialog.Title>{proposal ? '确认修改' : '编辑套餐'}</Dialog.Title>
-              <Dialog.Description>{proposal ? `请核对「${name}」的变更。` : '设置套餐价格、有效期及销售状态。'}</Dialog.Description>
+              <Dialog.Title>{proposal ? '确认修改' : `编辑${name}`}</Dialog.Title>
+              <Dialog.Description>{proposal ? `请核对「${name}」的变更。` :
+                plan.id === 'annual' ? '修改套餐价格和有效期。' : '修改套餐价格，其他规则为固定配置。'}</Dialog.Description>
             </div>
-            {!proposal && <Dialog.Close asChild><Button type="button" variant="ghost" size="icon" className="plan-close" aria-label="关闭"><X size={19} aria-hidden="true" /></Button></Dialog.Close>}
+            {!proposal && <Dialog.Close asChild><Button type="button" variant="ghost" size="icon" className="plan-close" aria-label="关闭" disabled={saving}><X size={19} aria-hidden="true" /></Button></Dialog.Close>}
           </header>
 
           {proposal ? (
@@ -93,56 +98,44 @@ export function PlanEditor({ plan, onClose, onConfirm, restoreFocus }: PlanEdito
                   </div>
                 ))}
               </dl>
-              {plan.available && !proposal.plan.available && <p className="plan-delist-note">下架后用户无法新购此套餐，已有会员权益不受影响。</p>}
               <footer className="plan-modal-actions">
                 <Button ref={backButton} type="button" variant="ghost" className="plan-secondary-button" disabled={saving} onClick={() => { setProposal(null); setFailure('') }}>返回编辑</Button>
-                <Button type="button" className="plan-primary-button" disabled={saving} onClick={() => void save()}>{saving ? '正在保存…' : '确认修改'}</Button>
+                <Button type="button" className="plan-primary-button" disabled={saving} onClick={() => void save(proposal.plan)}>{saving ? '正在保存…' : '确认修改'}</Button>
               </footer>
               {failure && <p className="plan-field-error" role="alert">{failure}</p>}
             </div>
           ) : (
             <form className="plan-modal-body" noValidate onSubmit={reviewChanges}>
-              <label className="plan-field">套餐名称<input value={name} readOnly /></label>
               <div className="plan-field">
                 <label htmlFor="plan-price-input">套餐价格（元）</label>
-                <input id="plan-price-input" ref={priceInput} inputMode="decimal" value={draft.price} onChange={(event) => updateDraft('price', event.target.value)}
+                <input id="plan-price-input" ref={priceInput} inputMode="decimal" value={draft.price} disabled={saving} onChange={(event) => updateDraft('price', event.target.value)}
                   aria-invalid={Boolean(errors.price)} aria-describedby={errors.price ? 'plan-price-error' : undefined} />
                 {errors.price && <span id="plan-price-error" className="plan-field-error" role="alert">{errors.price}</span>}
               </div>
-              {plan.id === 'lifetime' ? (
-                <label className="plan-field">有效期<input value="永久有效" readOnly /></label>
-              ) : (
+              {plan.id === 'annual' ? (
                 <div className="plan-field">
                   <label htmlFor="plan-duration-input">有效期（天）</label>
                   <input id="plan-duration-input" ref={durationInput} inputMode="numeric" value={draft.duration} onChange={(event) => updateDraft('duration', event.target.value)}
                     aria-invalid={Boolean(errors.duration)} aria-describedby={errors.duration ? 'plan-duration-error' : undefined} />
                   {errors.duration && <span id="plan-duration-error" className="plan-field-error" role="alert">{errors.duration}</span>}
                 </div>
+              ) : (
+                <dl className="plan-field">
+                  <dt>套餐有效期</dt>
+                  <dd className="plan-fixed-duration">{monthly ? '30 天' : formatPlanDuration(plan.durationDays)}</dd>
+                </dl>
               )}
-              <div className="plan-switches">
-                <PlanToggle label="官网推荐" status={draft.recommended ? '开启' : '关闭'} checked={draft.recommended} onChange={(checked) => updateDraft('recommended', checked)} />
-                <PlanToggle label="允许购买" status={saleStatus(draft.available)} checked={draft.available} onChange={(checked) => updateDraft('available', checked)} />
-              </div>
-              <p className="plan-local-note">保存后对新订单生效，已有订单和会员权益保持原购买条件。</p>
+              <p className="plan-modal-note plan-order-note"><Info size={17} aria-hidden="true" />修改仅对新订单生效，不影响已购会员权益。</p>
               {unchanged && <p className="plan-no-changes" role="status">没有需要保存的修改。</p>}
+              {failure && <p className="plan-field-error" role="alert">{failure}</p>}
               <footer className="plan-modal-actions">
-                <Dialog.Close asChild><Button type="button" variant="ghost" className="plan-secondary-button">取消</Button></Dialog.Close>
-                <Button type="submit" className="plan-primary-button">保存修改</Button>
+                <Dialog.Close asChild><Button type="button" variant="ghost" className="plan-secondary-button" disabled={saving}>取消</Button></Dialog.Close>
+                <Button type="submit" className="plan-primary-button" disabled={saving}>{saving ? '正在保存…' : '保存修改'}</Button>
               </footer>
             </form>
           )}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
-  )
-}
-
-function PlanToggle({ label, status, checked, onChange }: { label: string; status: string; checked: boolean; onChange: (checked: boolean) => void }) {
-  return (
-    <label className="plan-toggle">
-      <span>{label}</span>
-      <span className="plan-toggle-status">{status}</span>
-      <input type="checkbox" role="switch" aria-label={label} checked={checked} onChange={(event) => onChange(event.target.checked)} />
-    </label>
   )
 }

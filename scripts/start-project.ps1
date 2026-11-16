@@ -13,7 +13,7 @@ $settingsFile = Join-Path $runRoot 'settings.json'
 $webUrl = 'http://127.0.0.1:5181'
 New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
 $utf8 = New-Object Text.UTF8Encoding($false)
-$state = @{ ProjectRoot = $projectRoot; Backend = $null; Frontend = $null }
+$state = @{ ProjectRoot = $projectRoot; Backend = $null; Frontend = $null; Watchdog = $null }
 
 function Read-Setting([string]$Name, $Default = $null) {
     $property = $settings.PSObject.Properties[$Name]
@@ -92,13 +92,30 @@ function Test-Api {
     if ($null -eq $health -or $health.Status -ne 200) { return $false }
     $info = Get-LocalResponse ($apiUrl + '/api/v1/system/info')
     if ($null -eq $info -or $info.Status -ne 200) { return $false }
-    try { return ($info.Body | ConvertFrom-Json).service -eq 'FocusTime_Server' } catch { return $false }
+    try { if (($info.Body | ConvertFrom-Json).service -ne 'FocusTime_Server') { return $false } } catch { return $false }
+    $trial = Get-LocalResponse ($apiUrl + '/api/v1/admin/registration-trial')
+    if ($null -eq $trial -or $trial.Status -ne 401) { return $false }
+    $collector = Get-LocalResponse ($apiUrl + '/health/alert-collector')
+    return $null -ne $collector -and $collector.Status -in @(200, 503)
 }
 
 function Test-Frontend {
-    $response = Get-LocalResponse ($webUrl + '/package.json')
-    if ($null -eq $response -or $response.Status -ne 200) { return $false }
-    try { return ($response.Body | ConvertFrom-Json).name -eq 'focustime-admin' } catch { return $false }
+    $response = Get-LocalResponse ($webUrl + '/notifications')
+    return $null -ne $response -and $response.Status -eq 200 -and
+        $response.Body.Contains('专注时光管理后台')
+}
+
+function Test-FrontendBuild {
+    $index = Join-Path $projectRoot 'dist\index.html'
+    if (-not (Test-Path -LiteralPath $index -PathType Leaf)) { return $false }
+    $built = (Get-Item -LiteralPath $index).LastWriteTimeUtc
+    $inputs = @(foreach ($name in @('src', 'public', 'image')) {
+        $directory = Join-Path $projectRoot $name
+        if (Test-Path -LiteralPath $directory -PathType Container) { Get-ChildItem -LiteralPath $directory -Recurse -File }
+    })
+    $inputs += @(Get-Item -LiteralPath (Join-Path $projectRoot 'index.html'), (Join-Path $projectRoot 'vite.config.ts'),
+        (Join-Path $projectRoot 'package.json'), (Join-Path $projectRoot 'pnpm-lock.yaml'))
+    return $null -eq ($inputs | Where-Object { $_.LastWriteTimeUtc -gt $built } | Select-Object -First 1)
 }
 
 function Test-Port([int]$Port) {
@@ -199,9 +216,10 @@ try {
         if (-not [string]::Equals([string]$saved.ProjectRoot, $projectRoot, [StringComparison]::OrdinalIgnoreCase)) { throw '启动状态文件属于另一个项目目录。' }
         $state.Backend = $saved.Backend
         $state.Frontend = $saved.Frontend
+        if ($null -ne $saved.PSObject.Properties['Watchdog']) { $state.Watchdog = $saved.Watchdog }
     }
     if ($Stop) {
-        foreach ($name in @('Frontend', 'Backend')) {
+        foreach ($name in @('Watchdog', 'Frontend', 'Backend')) {
             $managed = Get-ManagedProcess $state[$name]
             if ($null -ne $managed) { Stop-Process -InputObject $managed; $managed.WaitForExit(5000) | Out-Null }
             $state[$name] = $null
@@ -244,15 +262,36 @@ try {
     }
     Write-Host '[3/5] 检查并启动原有 PostgreSQL 数据库…'
     Ensure-Database
+    $dotnet = Join-Path $serverRoot '.tools\dotnet\dotnet.exe'
+    if (-not (Test-Path -LiteralPath $dotnet)) {
+        $dotnetCommand = Get-Command dotnet.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($null -eq $dotnetCommand) { throw '找不到 .NET SDK，请安装 .NET 10 SDK 后重新启动。' }
+        $dotnet = $dotnetCommand.Source
+    }
+    $apiBuild = Join-Path $runRoot 'api-build'
+    $apiDll = Join-Path $apiBuild 'FocusTime.Api.dll'
+    $spool = if ($env:AdminAlerts__SpoolDirectory) { $env:AdminAlerts__SpoolDirectory } else { Join-Path $runRoot 'alerts' }
+    $probeUrl = if ($env:AdminAlerts__PublicBaseUrl) { $env:AdminAlerts__PublicBaseUrl } else { $apiUrl }
+    $watchEnvironment = @{ DOTNET_ROOT = (Split-Path -Parent $dotnet); AdminAlerts__SpoolDirectory = [IO.Path]::GetFullPath($spool);
+        AdminAlerts__PublicBaseUrl = $probeUrl }
     Write-Host '[4/5] 检查并启动 FocusTime_Server…'
     if (-not (Test-Api)) {
-        if (Test-Port $apiUri.Port) { throw "后端端口 $($apiUri.Port) 已被占用但未就绪，请先检查已有服务。" }
-        $dotnet = Join-Path $serverRoot '.tools\dotnet\dotnet.exe'
-        if (-not (Test-Path -LiteralPath $dotnet)) {
-            $dotnetCommand = Get-Command dotnet.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($null -eq $dotnetCommand) { throw '找不到 .NET SDK，请安装 .NET 10 SDK 后重新启动。' }
-            $dotnet = $dotnetCommand.Source
+        $managed = Get-ManagedProcess $state.Backend
+        if ($null -ne $managed) {
+            Write-Host '一键启动管理的后端未就绪，正在重新构建并启动…'
+            Stop-Process -InputObject $managed
+            if (-not $managed.WaitForExit(5000)) { throw '旧后端进程未能停止。' }
+            $state.Backend = $null
+            Save-State
         }
+        if (Test-Port $apiUri.Port) { throw "后端端口 $($apiUri.Port) 已被其他进程使用，且现有 API 版本或健康状态不满足启动检查。请停止该进程的本机启动器后重试。" }
+        $watchdog = Get-ManagedProcess $state.Watchdog
+        if ($null -ne $watchdog) {
+            Stop-Process -InputObject $watchdog
+            if (-not $watchdog.WaitForExit(5000)) { throw '监控进程未能停止。' }
+        }
+        $state.Watchdog = $null
+        Save-State
         $connection = New-Object System.Data.Common.DbConnectionStringBuilder
         $connection['Host'] = '127.0.0.1'; $connection['Port'] = [string]$databasePort
         $connection['Database'] = 'postgres'; $connection['Username'] = 'postgres'; $connection['Password'] = $databasePassword
@@ -260,13 +299,16 @@ try {
         $environment = @{ DOTNET_ROOT = (Split-Path -Parent $dotnet); DOTNET_ENVIRONMENT = 'Development'; ASPNETCORE_ENVIRONMENT = 'Development';
             ConnectionStrings__Database = $connection.ConnectionString; Email__Mode = 'Pickup'; Email__PickupDirectory = (Join-Path $contentRoot 'mail');
             AdminOverview__UserIds__0 = $adminId.ToString() }
-        $apiBuild = Join-Path $runRoot 'api-build'
+        $environment += @{ AdminAlerts__SpoolDirectory = $watchEnvironment.AdminAlerts__SpoolDirectory }
         With-Environment $environment {
             $arguments = @('build', (Join-Path $serverRoot 'src\FocusTime.Api\FocusTime.Api.csproj'), '--nologo', '--verbosity', 'minimal', '--output', $apiBuild)
             if (Test-Path (Join-Path $serverRoot 'src\FocusTime.Api\obj\project.assets.json')) { $arguments += '--no-restore' }
             $build = Start-Hidden $dotnet $arguments $serverRoot 'backend-build' -Wait
             if ($build.ExitCode -ne 0) { throw "后端构建失败，请查看 $logRoot\backend-build.log" }
-            $backend = Start-Hidden $dotnet @((Join-Path $apiBuild 'FocusTime.Api.dll'), '--contentRoot', $contentRoot, '--urls', $apiUrl) $contentRoot 'backend'
+            Write-Host '应用本机数据库迁移…'
+            $migration = Start-Hidden $dotnet @($apiDll, '--contentRoot', $contentRoot, '--migrate') $contentRoot 'backend-migrate' -Wait
+            if ($migration.ExitCode -ne 0) { throw "本机数据库迁移失败，请查看 $logRoot\backend-migrate.log 和 backend-migrate-error.log" }
+            $backend = Start-Hidden $dotnet @($apiDll, '--contentRoot', $contentRoot, '--urls', $apiUrl) $contentRoot 'backend'
             $state.Backend = Process-Record $backend $dotnet
             Save-State
             $deadline = [DateTime]::UtcNow.AddSeconds(40)
@@ -281,11 +323,32 @@ try {
             [IO.File]::WriteAllText($legacyState, (@{ Pid = $state.Backend.Pid; Started = [long]$state.Backend.Started; BaseUrl = $apiUrl } | ConvertTo-Json), $utf8)
         }
     } else { Write-Host '后端已运行，复用现有服务。' }
+    if ($null -eq (Get-ManagedProcess $state.Watchdog)) {
+        $watchdog = With-Environment $watchEnvironment {
+            Start-Hidden $dotnet @($apiDll, '--alert-watchdog') $contentRoot 'alert-watchdog'
+        }
+        $state.Watchdog = Process-Record $watchdog $dotnet
+        Save-State
+        if ($watchdog.WaitForExit(800)) { throw "独立告警探测进程启动失败，请查看 $logRoot\alert-watchdog-error.log" }
+    }
     Write-Host '[5/5] 检查并启动管理后台…'
-    if (-not (Test-Frontend)) {
+    $managedFrontend = Get-ManagedProcess $state.Frontend
+    $buildCurrent = Test-FrontendBuild
+    if (-not (Test-Frontend) -or (-not $buildCurrent -and $null -ne $managedFrontend)) {
+        if ($null -ne $managedFrontend) {
+            Stop-Process -InputObject $managedFrontend
+            if (-not $managedFrontend.WaitForExit(5000)) { throw '前端进程未能停止。' }
+            $state.Frontend = $null
+            Save-State
+        }
         if (Test-Port 5181) { throw '5181 端口被其他程序占用，未终止任何现有程序。' }
+        $vite = Join-Path $projectRoot 'node_modules\vite\bin\vite.js'
+        if (-not $buildCurrent) {
+            $frontendBuild = Start-Hidden $node @($vite, 'build') $projectRoot 'frontend-build' -Wait
+            if ($frontendBuild.ExitCode -ne 0) { throw "前端构建失败，请查看 $logRoot\frontend-build.log" }
+        }
         $frontend = With-Environment @{ FOCUSTIME_API_TARGET = $apiUrl } {
-            Start-Hidden $node @((Join-Path $projectRoot 'node_modules\vite\bin\vite.js'), '--host', '127.0.0.1', '--port', '5181', '--strictPort') $projectRoot 'frontend'
+            Start-Hidden $node @($vite, 'preview', '--host', '127.0.0.1', '--port', '5181', '--strictPort') $projectRoot 'frontend'
         }
         $state.Frontend = Process-Record $frontend $node
         Save-State
@@ -298,6 +361,8 @@ try {
     } else { Write-Host '前端已运行，复用现有服务。' }
     $proxy = Get-LocalResponse ($webUrl + '/api/v1/admin/session')
     if ($null -eq $proxy -or $proxy.Status -notin @(200, 401, 403)) { throw '前端已启动，但后端代理连接失败，请查看前后端日志。' }
+    $trialProxy = Get-LocalResponse ($webUrl + '/api/v1/admin/registration-trial')
+    if ($null -eq $trialProxy -or $trialProxy.Status -ne 401) { throw '前端代理未连接到支持体验规则的后端，请查看前后端日志。' }
     Save-State
     Write-Host "启动成功：$webUrl/login" -ForegroundColor Green
     Write-Host '以后双击“启动项目.cmd”即可；停止前后端请双击“停止项目.cmd”。'

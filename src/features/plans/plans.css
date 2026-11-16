@@ -59,9 +59,6 @@
 .trial-rule-icon { display: grid; flex: none; width: 54px; height: 54px; place-items: center; border-radius: 14px; }
 .trial-rule-duration { color: #2383f6; background: #eaf4ff; }
 .trial-rule-limit { color: #7854f5; background: #f3efff; }
-.trial-rule-form { display: grid; gap: 16px; }
-.plan-modal .plan-local-note { margin: 0; font-size: 12px; font-weight: 400; }
-.trial-rule-modal .detail-drawer-body { padding: 18px 23px 22px; }
 
 @media (max-width: 1050px) {
   .plan-section { padding-inline: 18px; }
@@ -88,43 +85,30 @@
   border-radius: 18px;
   transform: translate(-50%, -50%);
 }
-.plan-modal-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 20px 23px 16px; border-bottom: 1px solid var(--border); }
-.plan-close { cursor: pointer; }
-.plan-modal-body { display: grid; gap: 14px; padding: 18px 23px 22px; }
-.plan-field { display: grid; gap: 6px; color: #33415d; font-size: 13px; font-weight: 650; }
+.plan-modal-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 18px 23px 17px; border-bottom: 1px solid var(--border); }
+.plan-modal-header h2 { font-size: 22px; }
+.plan-close { margin: -3px -5px 0 0; color: var(--secondary-text); cursor: pointer; }
+.plan-modal-body { display: grid; gap: 18px; padding: 18px 23px 22px; }
+.plan-field { display: grid; gap: 7px; color: var(--foreground); font-size: 15px; font-weight: 650; }
 .plan-field input {
   width: 100%;
   height: 40px;
   padding-inline: 11px;
   border: 1px solid #e0e4ed;
-  border-radius: 8px;
+  border-radius: 9px;
+  background: #fff;
   outline: 0;
   color: var(--foreground);
   font-size: 14px;
   font-weight: 550;
 }
 .plan-field input:focus { border-color: var(--plan-accent); box-shadow: 0 0 0 2px #fd7e0525; }
-.plan-field input[readonly] { background: #f6f7fa; color: #596681; }
 .plan-field input[aria-invalid='true'] { border-color: #cc394a; }
-.plan-field-error { color: #b8212d; font-weight: 500; }
-.plan-switches { border: 1px solid var(--border); border-radius: 9px; }
-.plan-toggle { display: flex; align-items: center; gap: 10px; padding: 10px 11px; font-size: 13px; font-weight: 650; cursor: pointer; }
-.plan-toggle + .plan-toggle { border-top: 1px solid var(--border); }
-.plan-toggle-status { margin-left: auto; color: var(--secondary-text); font-weight: 500; }
-.plan-toggle input {
-  position: relative;
-  appearance: none;
-  flex: none;
-  width: 36px;
-  height: 21px;
-  border-radius: 20px;
-  background: #818b9d;
-  cursor: pointer;
-}
-.plan-toggle input::after { content: ''; position: absolute; top: 3px; left: 3px; width: 15px; height: 15px; border-radius: 50%; background: #fff; }
-.plan-toggle input:checked { background: var(--plan-accent); }
-.plan-toggle input:checked::after { left: 18px; }
-.plan-toggle input:focus-visible { outline: 2px solid var(--plan-accent); outline-offset: 3px; }
+.plan-modal .plan-field-error { margin: 0; color: #b8212d; font-size: 13px; font-weight: 500; }
+.plan-fixed-duration { color: var(--secondary-text); font-size: 13px; font-weight: 400; }
+.plan-modal .plan-modal-note { display: flex; align-items: center; gap: 8px; margin: 0; }
+.plan-modal-note svg { flex: none; }
+.plan-order-note { border-top: 1px solid var(--border); padding-top: 14px; }
 
 .plan-changes { border: 1px solid var(--border); border-radius: 10px; }
 .plan-changes > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 11px; font-size: 13px; }
@@ -132,13 +116,46 @@
 .plan-changes dt { flex: none; font-weight: 650; }
 .plan-changes dd { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 7px; color: var(--secondary-text); overflow-wrap: anywhere; }
 .plan-changes dd strong { color: var(--foreground); }
-.plan-modal .plan-delist-note { margin: 0; padding: 9px 11px; border-radius: 8px; background: #fff3e6; color: #8f490e; }
 .plan-modal .plan-no-changes { margin: 0; }
-.plan-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 3px; }
-.plan-modal-actions button { height: 39px; cursor: pointer; }
+.plan-modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 3px; }
+.plan-modal-actions button { height: 40px; padding-inline: 18px; border-radius: 9px; cursor: pointer; }
 .plan-modal-actions .plan-secondary-button { border: 1px solid var(--border); }
-.plan-modal-actions .plan-primary-button { background: var(--plan-accent); color: #311b07; font-weight: 700; }
+.plan-modal-actions .plan-primary-button { background: var(--plan-accent); color: #fff; font-weight: 700; }
 .plan-modal-actions .plan-primary-button:hover { background: #f47400; }
+.trial-rule-modal { padding: 0 26px; }
+.trial-rule-modal .plan-modal-header { align-items: center; padding: 28px 0 23px; }
+.trial-rule-modal .plan-modal-header h2 { font-size: 24px; }
+.trial-rule-modal .plan-modal-body { gap: 20px; padding: 22px 0 28px; }
+.trial-rule-modal .plan-field { gap: 10px; font-size: 17px; }
+.trial-duration-control {
+  display: flex;
+  align-items: center;
+  border: 1px solid #dce1ec;
+  border-radius: 10px;
+}
+.trial-duration-control:focus-within { border-color: var(--plan-accent); box-shadow: 0 0 0 2px #fd7e0525; }
+.trial-duration-control[data-invalid='true'] { border-color: #cc394a; }
+.trial-duration-control input, .trial-duration-control input:focus {
+  appearance: textfield;
+  min-width: 0;
+  height: 54px;
+  padding-inline: 15px;
+  border: 0;
+  box-shadow: none;
+  font-size: 18px;
+}
+.trial-duration-control input::-webkit-inner-spin-button,
+.trial-duration-control input::-webkit-outer-spin-button { appearance: none; margin: 0; }
+.trial-duration-steps { position: relative; display: grid; flex: none; width: 44px; color: var(--secondary-text); }
+.trial-duration-steps::before { content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; border-left: 1px solid var(--border); }
+.trial-duration-steps button { display: grid; place-items: center; height: 26px; margin-inline: 4px; border-radius: 6px; cursor: pointer; }
+.trial-duration-steps button:hover:not(:disabled) { background: #f2f3f8; }
+.trial-duration-steps button:focus-visible { outline: 2px solid var(--plan-accent); outline-offset: -2px; }
+.trial-duration-steps button:disabled { opacity: .4; cursor: default; }
+.trial-rule-modal .plan-modal-note { font-size: 15px; }
+.trial-rule-modal .plan-modal-actions { border-top: 1px solid var(--border); padding-top: 23px; }
+.trial-rule-modal .plan-modal-actions button { width: min(32%, 130px); min-width: max-content; height: 47px; }
+.trial-rule-retry { justify-self: start; cursor: pointer; }
 .plan-notice {
   position: fixed;
   z-index: 9;

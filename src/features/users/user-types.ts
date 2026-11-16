@@ -1,5 +1,5 @@
 export type AccountStatus = 'active' | 'disabled' | 'deleted' | 'locked'
-export type Membership = { plan: 'monthly' | 'annual'; expiresOn: string } | { plan: 'lifetime' }
+export type Membership = { plan: 'trial' | 'monthly' | 'annual'; expiresOn: string } | { plan: 'lifetime' }
 export interface User {
   id: string
   email: string

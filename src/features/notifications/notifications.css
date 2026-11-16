@@ -28,7 +28,6 @@
   display: grid;
   grid-template: 'heading' auto 'list' minmax(0, 1fr) 'feedback' auto 'footer' auto / minmax(0, 1fr);
   width: min(360px, calc(100vw - 24px));
-  height: 350px;
   max-height: var(--radix-dropdown-menu-content-available-height, 90dvh);
   border: 1px solid #e6e9f4;
   border-radius: 15px;
@@ -49,8 +48,9 @@
   font-weight: 750;
 }
 .notice-unread-count { padding: 3px 10px; border-radius: 20px; background: #fff0e1; color: #a74800; font-size: 12px; }
-.notice-unread-count[data-zero='true'] { background: #f1f3f8; color: #65738b; }
-.notice-pop-list { grid-area: list; display: grid; align-content: start; gap: 5px; min-height: 0; overflow: auto; padding: 8px 11px; }
+.notice-pop-list { grid-area: list; display: grid; align-content: start; gap: 5px; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 8px 11px; }
+.notice-pop-list .notice-empty { min-height: 110px; padding: 12px 0; font-size: 14px; }
+.notice-pop-list .notice-empty svg { color: #a4adbd; }
 .notice-pop-footer {
   grid-area: footer;
   display: flex;
@@ -83,6 +83,8 @@
 .notice-icon { display: grid; flex: none; width: 40px; height: 40px; place-items: center; border-radius: 10px; }
 .notice-icon-order { background: #fff1d7; color: #b95c03; }
 .notice-icon-system { background: #ffe9eb; color: #d14050; }
+.notice-icon-api-rate, .notice-icon-login { background: #ffe9eb; color: #d14050; }
+.notice-icon-mail, .notice-icon-security { background: #fff1d7; color: #b95c03; }
 .notice-copy { display: grid; min-width: 0; gap: 2px; color: #162239; }
 .notice-copy strong { font-size: 14px; font-weight: 750; }
 .notice-description { color: #52617a; font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
@@ -110,6 +112,7 @@
 .notice-row-full:disabled { cursor: wait; }
 .notice-metadata { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 5px 8px; }
 .notice-handled { padding: 2px 7px; border-radius: 12px; background: #eef5ef; color: #337448; font-size: 11px; }
+.notice-open-status { padding: 2px 7px; border-radius: 12px; background: #fff1df; color: #a64d03; font-size: 11px; }
 .notice-chevron { color: #63738f; }
 .notice-center-empty { min-height: 180px; border: 1px solid #edf0f6; border-radius: 12px; background: #fcfcfe; }
 .notice-center-message { display: flex; align-items: center; gap: 4px; margin: 0 0 10px; color: #ad2e42; font-size: 13px; }

@@ -6,11 +6,12 @@ import { useAdminAuth } from '@/features/auth/admin-auth'
 import { ApiError } from '@/lib/api'
 import { plans } from '@/features/orders/order-types'
 import { detailPath, formatDetailTime, useUserDetailRequest } from './user-detail-api'
+import { membershipPlanLabel } from './user-display'
 import { UserDetailRequestState, UserDetailStatus, UserDetailSubdialog } from './user-detail-components'
 import type { User } from './user-types'
 import './user-membership-adjustment.css'
 
-interface EffectiveMembership { isActive: boolean; plan: string | null; grantId: string | null; startsAtUtc: string | null; expiresAtUtc: string | null }
+interface EffectiveMembership { isActive: boolean; plan: string | null; grantId: string | null; startsAtUtc: string | null; expiresAtUtc: string | null; isTrial?: boolean }
 interface AdjustmentContext {
   userId: string; email: string; current: EffectiveMembership
   canGrant: boolean; canRevokeAll: boolean; protectionNote: string | null
@@ -25,7 +26,7 @@ const revokeReasons = { 'issued-in-error': '发放错误', ineligible: '赠送�
 const modes = [{ id: 'grant', label: '发放会员', icon: Gift }, { id: 'revoke', label: '撤销会员', icon: Ban }] as const
 type AdjustmentMode = typeof modes[number]['id']
 const membershipLabel = (membership: EffectiveMembership) => membership.isActive
-  ? plans[membership.plan as keyof typeof plans]?.label ?? membership.plan ?? '—' : '非会员'
+  ? membershipPlanLabel(membership.isTrial ? 'trial' : membership.plan) : '非会员'
 const expiryLabel = (membership: EffectiveMembership) => membership.isActive && membership.plan === 'lifetime'
   ? '永久有效' : formatDetailTime(membership.expiresAtUtc, true)
 

@@ -5,7 +5,7 @@ import { formatLatency, overallStatus, services, serviceStatusLabels, type Servi
 
 const statusIcons = { healthy: CircleCheck, unavailable: CircleX, unknown: CircleHelp }
 const coreServices = [
-  { id: 'api', icon: Server, timing: '本次监控请求往返耗时' },
+  { id: 'api', icon: Server, timing: '外部探测耗时' },
   { id: 'database', icon: Database, timing: '数据库就绪检查耗时' },
 ] as const
 

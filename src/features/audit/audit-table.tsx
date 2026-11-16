@@ -1,4 +1,4 @@
-import { Crown, Layers3, NotebookText, Settings, UserRound } from 'lucide-react'
+import { Check, Crown, Layers3, NotebookText, Settings, UserRound, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ListEmpty } from '@/components/ui/list-controls'
@@ -9,7 +9,11 @@ const categoryIcons = { users: UserRound, orders: NotebookText, plans: Layers3, 
 const columns = ['操作时间', '操作管理员', '操作类型', '操作内容', '操作结果', '操作来源', '操作']
 
 export function AuditStatusBadge({ status, detail = false }: { status: AuditStatus; detail?: boolean }) {
-  return <Badge className="audit-status" data-result={status}>{detail ? '执行' : ''}{status === 'success' ? '成功' : '失败'}</Badge>
+  const Icon = status === 'success' ? Check : X
+  return <Badge className="audit-status" data-result={status}>
+    {detail && <Icon size={14} strokeWidth={2.6} aria-hidden="true" />}
+    {detail ? '执行' : ''}{status === 'success' ? '成功' : '失败'}
+  </Badge>
 }
 
 interface AuditTableProps {

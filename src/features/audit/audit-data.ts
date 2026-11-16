@@ -6,6 +6,7 @@ type AuditResult = { status: 'success'; changes: readonly AuditChange[] } | { st
 export interface AuditLog {
   id: string; occurredAt: string; administrator: string; source: string; ip: string | null
   category: AuditCategory; action: string; target: string; targetId: string; result: AuditResult; note?: string | null
+  membershipGrantId?: string | null
 }
 export type AuditPeriod = 'week' | 'month' | 'custom'
 export interface AuditDateRange { start: string; end: string }

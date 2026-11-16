@@ -4,7 +4,7 @@
 
 ## 本地启动
 
-Windows 当前本机可直接双击根目录的 **`启动项目.cmd`**，启动完成后会自动打开 `http://127.0.0.1:5181/login`。脚本自动查找系统或 Codex 自带的 Node.js，直接运行 Vite，不要求普通 PowerShell 能识别 `pnpm`。前端依赖已存在时不重复安装。
+Windows 当前本机可直接双击根目录的 **`启动项目.cmd`**，启动完成后会自动打开 `http://127.0.0.1:5181/login`。脚本自动查找系统或 Codex 自带的 Node.js，通过 Vite 提供已构建的前端，源码更新后再次启动会重新构建。开发时可用 `pnpm dev` 热更新。
 
 启动入口会检查并启动原有 PostgreSQL 数据库、构建并启动 `FocusTime_Server`，最后验证前后端连通；重复点击会复用已有服务。它沿用原数据库、管理员白名单和认证密钥，不创建替代数据库、不重置账号，也不自动执行数据库迁移。
 
@@ -55,11 +55,14 @@ pnpm dev
 
 ## 通知中心
 
-通知复用待处理订单筛选和 API、数据库健康检查。后端每 30 秒采集一次，数据库不可用期间观察到的监控告警在连接恢复后写入。顶部铃铛每 15 秒同步最新 3 条和未读数，通知中心按时间倒序分页读取全部历史。
+通知覆盖订单权益发放、独立探测、通知采集心跳、关键 API 错误率、注册验证码邮件和登录安全。通知中心可见时每 30 秒用同一次查询刷新列表、铃铛和当前详情，其他后台页面每 60 秒刷新铃铛。标签页隐藏时暂停轮询。通知详情可查看发生、恢复时间，以及关联的订单或审计记录。
 
-- `GET /api/v1/admin/notifications` 支持 `unreadOnly`、`page`、`pageSize`，返回当前页、总数和当前管理员的未读数。
-- `POST /api/v1/admin/notifications/{id}/read` 和 `POST /api/v1/admin/notifications/read-all` 使用现有管理员会话及 `X-FocusTime-Admin: 1`，返回最新 3 条和更新后的未读数。
+- `GET /api/v1/admin/notifications` 支持 `unreadOnly`、`page`、`pageSize`，返回当前页、总数和当前管理员的未读数。铃铛最多显示 4 条未读，通知中心用 `includeLatestUnread=true` 在同一次查询获取列表和铃铛数据。用 `noticeId` 同时读取指定通知。
+- `GET /api/v1/admin/notifications/{id}` 读取已持久化的通知详情。
+- `POST /api/v1/admin/notifications/{id}/read` 和 `POST /api/v1/admin/notifications/read-all` 使用现有管理员会话及 `X-FocusTime-Admin: 1`。默认返回最新 3 条和更新后的未读数，也支持与查询接口相同的分页和详情参数。
 - 部署需应用后端 `20261110131946_AdminNotifications`。通知来源、跳转标识、发生时间和处理时间保存到 `admin.notifications`。已读时间按管理员保存到 `admin.notification_reads`，与业务异常的恢复独立。
+- 新增告警需应用 `20261117100000_OperationalAlerts`。Windows 一键启动会运行独立探测进程，默认探测本机 API。独立部署时，API 和探测进程共用 `AdminAlerts__SpoolDirectory` 指定的目录，探测进程执行 `dotnet FocusTime.Api.dll --alert-watchdog`，并通过 `AdminAlerts__PublicBaseUrl` 指向实际对外地址。目录中的探测历史用于数据库恢复后的补录。
+- 如需在 API 或数据库离线期间向运维渠道推送，可为探测进程设置 `AdminAlerts__WebhookUrl`。目标接收 JSON POST，按 `Idempotency-Key` 去重。未配置时只记录到本地探测文件，数据库恢复后同步到通知中心。API 错误率、注册邮件和集中登录失败按 API 实例统计，独立实例设置各自稳定的 `AdminAlerts__InstanceId`。
 
 ## 真实用户管理
 
